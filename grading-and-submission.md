@@ -75,7 +75,7 @@ support](https://code.visualstudio.com/docs/editor/versioncontrol#_git-support).
 
 ## Checking the result
 
-Once you've pushed your code, you can see the result online by going to `https://gitlab.epfl.ch/lamp/students-repositories-fall-2022/cs210-GASPAR/pipelines`.
+Once you've pushed your code, you can see the result online by going to `https://gitlab.epfl.ch/lamp/student-repos-cs320-2022/cs320-GASPAR/pipelines`.
 
 ![](images/pipeline-tab.png)
 
