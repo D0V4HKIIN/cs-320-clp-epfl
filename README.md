@@ -8,4 +8,4 @@ Course material and administrative details can be found on the [Gitlab page](htt
 
 To select a branch, click on the "main" dropdown menu (under the project description):
 
-![Branch selection](branch-selection.jpg) #TODO : change image for CLP
+![Branch selection](images/projects.png)
