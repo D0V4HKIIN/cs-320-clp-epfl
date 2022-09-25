@@ -77,7 +77,6 @@ support](https://code.visualstudio.com/docs/editor/versioncontrol#_git-support).
 
 Once you've pushed your code, you can see the result online by going to `https://gitlab.epfl.ch/lamp/student-repos-cs320-2022/cs320-GASPAR/pipelines`.
 
-![](images/pipeline-tab.png)
 
 The grading pipeline contains two steps:
 
@@ -89,11 +88,11 @@ the same time and you'll have to wait a bit for your job to run.
 
 You can click on the `grade` job to see its output:
 
-![](images/pipeline-details.png)
+![](images/pipelines.png)
 
 Your grade is given on the line that starts with `Your score for this assignment is`:
 
-![](images/pipeline-logs.png)
+![](images/grade.png)
 
 
 **If you push to gitlab multiple times, your final grade will be based on the
