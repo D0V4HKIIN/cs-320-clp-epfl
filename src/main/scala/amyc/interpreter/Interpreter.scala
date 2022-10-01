@@ -163,7 +163,7 @@ object Interpreter extends Pipeline[(Program, SymbolTable), Unit] {
               case (StringValue(_), LiteralPattern(StringLiteral(_))) =>
                 None
               case (UnitValue, LiteralPattern(UnitLiteral())) =>
-                None
+                Some(List())
               case (CaseClassValue(con1, realArgs), CaseClassPattern(con2, formalArgs)) =>
                 if con1 == con2 then 
                   realArgs.zip(formalArgs).foldLeft(Some(List()): Option[List[(Identifier, Value)]]) {

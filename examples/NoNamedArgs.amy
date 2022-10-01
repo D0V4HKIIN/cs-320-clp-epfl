@@ -1,7 +1,0 @@
-
-object NoMatch 
-  abstract class Caser
-  case class Case(i: Int(32), b: Boolean, u: Unit) extends Caser
-
-  Case(10, true, ()) match { case Case(10, true, ()) => () }
-end NoMatch
