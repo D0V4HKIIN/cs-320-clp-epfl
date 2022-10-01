@@ -166,6 +166,7 @@ object Interpreter extends Pipeline[(Program, SymbolTable), Unit] {
                 if con1 == con2 then 
                   realArgs.zip(formalArgs).foldLeft(Some(List()): Option[List[(Identifier, Value)]]) {
                     case (Some(acc), (v, p)) =>
+                      // if(matchesPattern(v, p).isDefined) then matchesPattern(v, p).map(acc ++ _)  else Some(acc)
                       matchesPattern(v, p).map(acc ++ _)  
                     case (None, _) =>
                       None
@@ -187,7 +188,7 @@ object Interpreter extends Pipeline[(Program, SymbolTable), Unit] {
 
           
         case Error(msg) =>
-          ???
+          ctx.reporter.fatal(msg)
       }
     }
 
