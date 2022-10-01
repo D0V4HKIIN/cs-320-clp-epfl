@@ -82,18 +82,20 @@ object Interpreter extends Pipeline[(Program, SymbolTable), Unit] {
         case Times(lhs, rhs) =>
           IntValue(interpret(lhs).asInt * interpret(rhs).asInt)
         case Div(lhs, rhs) =>
+          val num = interpret(lhs).asInt
           val divisor = interpret(rhs).asInt
           if (divisor == 0) {
             ctx.reporter.fatal("Division by zero")
           } else {
-            IntValue(interpret(lhs).asInt / divisor)
+            IntValue(num / divisor)
           }
         case Mod(lhs, rhs) =>
+          val num = interpret(lhs).asInt
           val divisor = interpret(rhs).asInt
           if (divisor == 0) {
             ctx.reporter.fatal("Division by zero")
           } else {
-            IntValue(interpret(lhs).asInt % divisor)
+            IntValue(num % divisor)
           }
         case LessThan(lhs, rhs) =>
           BooleanValue(interpret(lhs).asInt < interpret(rhs).asInt)
