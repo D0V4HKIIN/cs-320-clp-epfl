@@ -85,8 +85,9 @@ object Lexer extends Pipeline[List[File], Iterator[Token]] with Lexers {
     },
 
     // Identifiers,
-    many1(elem(_.isLetterOrDigit)) |> { (cs, range) =>
-      IdentifierToken(cs.mkString).setPos(range._1)
+    elem(_.isLetter) ~ many(elem(_.isLetterOrDigit) | word("_")) |> {
+      (cs, range) =>
+        IdentifierToken(cs.mkString).setPos(range._1)
     },
 
     // InteBooleanLiteralger literal,
