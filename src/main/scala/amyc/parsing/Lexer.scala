@@ -136,13 +136,17 @@ object Lexer extends Pipeline[List[File], Iterator[Token]] with Lexers {
     // Multiline comments,
     // NOTE: Amy does not support nested multi-line comments (e.g. `/* foo /* bar */ */`).
     //       Make sure that unclosed multi-line comments result in an ErrorToken.
+    // spent around 7 hours on this
     //many((many1(elem(_ == '*')) ~ elem(_ != '/')) | elem(_ != '*'))
     //many((many1(elem(_ == '*')) ~ elem(_ != '/')) | elem(_ != '*'))
-
     //elem('*') | many1(word("*"))~(elem('*') | elem(c => c != '*' && c != '/'))
     word("/*") ~ many(elem(_ != '*') | many1(elem(_ == '*') ~ elem(c => c != '*' && c != '/') )) ~ many1(elem(_ == '*')) ~ elem(_ == '/') |> { (cs, range) =>
       CommentToken(cs.mkString).setPos(range._1)
     },
+    word("/*") ~ many(elem(_ != '*') | many1(elem(_ == '*') ~ elem(c => c != '*' && c != '/') )) |> { (cs, range) =>
+      ErrorToken("Unclosed comment " + cs.mkString + " at " + range._1).setPos(range._1)
+    },
+    
     any |> { (cs, range) =>
       ErrorToken("not implemented " + cs.mkString + " at " + range._1)
     }
