@@ -72,17 +72,19 @@ object Lexer extends Pipeline[List[File], Iterator[Token]] with Lexers {
     word("Int") | word("String") | word("Boolean") | word("Unit") | word(
       "Id"
     ) |> { (cs, range) => PrimTypeToken(cs.mkString).setPos(range._1) },
+
+    // Boolean literals
     word("true") | word("false") |> { (cs, range) =>
       BoolLitToken(cs.mkString == "true").setPos(range._1)
     },
 
     // Operators,
     // NOTE: You can use `oneof("abc")` as a shortcut for `word("a") | word("b") | word("c")`
-    oneOf("+-*/%<!") | word("<=") | word("&&") | word("||") | word("==") | word(
-      "++"
-    ) |> { (cs, range) =>
-      OperatorToken(cs.mkString).setPos(range._1)
-    },
+    oneOf("+-*/%<!") | word("<=") | word("&&") | word("||") | word("==")
+      | word("++")
+      |> { (cs, range) =>
+        OperatorToken(cs.mkString).setPos(range._1)
+      },
 
     // Identifiers,
     elem(_.isLetter) ~ many(elem(_.isLetterOrDigit) | word("_")) |> {
@@ -90,15 +92,25 @@ object Lexer extends Pipeline[List[File], Iterator[Token]] with Lexers {
         IdentifierToken(cs.mkString).setPos(range._1)
     },
 
-    // InteBooleanLiteralger literal,
+    // Integer literal,
     // NOTE: Make sure to handle invalid (e.g. overflowing) integer values safely by
     //       emitting an ErrorToken instead.
-    // TODO
+    many1(elem(_.isDigit)) |> { (cs, range) =>
+      try {
+        IntLitToken(cs.mkString.toInt).setPos(range._1)
+      } catch {
+        case _ =>
+          ErrorToken(
+            "couldn't create int literal " + cs.mkString + " at " + range._1
+          )
+      }
+    },
 
     // String literal,
     word("\"") ~ elem(_.isValidChar) ~ word("\"") |> { (cs, range) =>
       StringLitToken(cs.mkString).setPos(range._1)
     },
+
     // error handling on string literals
     word("\"") |> { (cs, range) =>
       ErrorToken(
@@ -108,23 +120,28 @@ object Lexer extends Pipeline[List[File], Iterator[Token]] with Lexers {
 
     // Delimiters,
     // found in the tests???
-    oneOf("{}(),:.=") | word("=>") |> { (cs, range) =>
+    oneOf("{}(),:.=;") | word("=>") |> { (cs, range) =>
       DelimiterToken(cs.mkString).setPos(range._1)
     },
 
     // Whitespace,
     many1(elem(_.isWhitespace)) |> { (cs, range) =>
-      SpaceToken().setPos(range._1).setPos(range._1)
+      SpaceToken().setPos(range._1)
     },
 
     // Single line comment,
     word("//") ~ many(elem(_ != '\n'))
-      |> { cs => CommentToken(cs.mkString("")) }
+      |> { cs => CommentToken(cs.mkString("")) },
 
     // Multiline comments,
     // NOTE: Amy does not support nested multi-line comments (e.g. `/* foo /* bar */ */`).
     //       Make sure that unclosed multi-line comments result in an ErrorToken.
-    // TODO
+    word("/*") ~ many(any) ~ word("*/") |> { (cs, range) =>
+      CommentToken(cs.mkString).setPos(range._1)
+    },
+    any |> { (cs, range) =>
+      ErrorToken("not implemented " + cs.mkString + " at " + range._1)
+    }
   ) onError {
     // We also emit ErrorTokens for Silex-handled errors.
     (cs, range) => ErrorToken(cs.mkString).setPos(range._1)
