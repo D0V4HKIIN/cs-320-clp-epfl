@@ -148,7 +148,7 @@ object Lexer extends Pipeline[List[File], Iterator[Token]] with Lexers {
     },
     
     any |> { (cs, range) =>
-      ErrorToken("not implemented " + cs.mkString + " at " + range._1)
+      ErrorToken("not implemented " + cs.mkString + " at " + range._1).setPos(range._1)
     }
   ) onError {
     // We also emit ErrorTokens for Silex-handled errors.
