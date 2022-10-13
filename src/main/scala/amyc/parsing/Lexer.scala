@@ -107,12 +107,12 @@ object Lexer extends Pipeline[List[File], Iterator[Token]] with Lexers {
     },
 
     // String literal,
-    word("\"") ~ elem(_.isValidChar) ~ word("\"") |> { (cs, range) =>
-      StringLitToken(cs.mkString).setPos(range._1)
+    word("\"") ~ many(elem(c => c != '\n' && c != '"')) ~ word("\"") |> { (cs, range) =>
+      StringLitToken(cs.mkString.substring(1,cs.mkString.length()-1)).setPos(range._1)
     },
 
     // error handling on string literals
-    word("\"") |> { (cs, range) =>
+    word("\"") ~ many(elem(c => c != '"')) ~ word("\n") |> { (cs, range) =>
       ErrorToken(
         "expect closing \" at cs " + cs.mkString + " and range " + range._1
       )
@@ -130,13 +130,17 @@ object Lexer extends Pipeline[List[File], Iterator[Token]] with Lexers {
     },
 
     // Single line comment,
-    word("//") ~ many(elem(_ != '\n'))
+    word("//") ~ many(elem(_ != '\n')) ~ word("\n")
       |> { cs => CommentToken(cs.mkString("")) },
 
     // Multiline comments,
     // NOTE: Amy does not support nested multi-line comments (e.g. `/* foo /* bar */ */`).
     //       Make sure that unclosed multi-line comments result in an ErrorToken.
-    word("/*") ~ many(any) ~ word("*/") |> { (cs, range) =>
+    //many((many1(elem(_ == '*')) ~ elem(_ != '/')) | elem(_ != '*'))
+    //many((many1(elem(_ == '*')) ~ elem(_ != '/')) | elem(_ != '*'))
+
+    //elem('*') | many1(word("*"))~(elem('*') | elem(c => c != '*' && c != '/'))
+    word("/*") ~ many(elem(_ != '*') | many1(elem(_ == '*') ~ elem(c => c != '*' && c != '/') )) ~ many1(elem(_ == '*')) ~ elem(_ == '/') |> { (cs, range) =>
       CommentToken(cs.mkString).setPos(range._1)
     },
     any |> { (cs, range) =>
