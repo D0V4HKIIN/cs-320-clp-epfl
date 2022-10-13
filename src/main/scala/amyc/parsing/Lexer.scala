@@ -102,7 +102,7 @@ object Lexer extends Pipeline[List[File], Iterator[Token]] with Lexers {
         case _ =>
           ErrorToken(
             "couldn't create int literal " + cs.mkString + " at " + range._1
-          )
+          ).setPos(range._1)
       }
     },
 
@@ -115,7 +115,7 @@ object Lexer extends Pipeline[List[File], Iterator[Token]] with Lexers {
     word("\"") ~ many(elem(c => c != '"')) ~ word("\n") |> { (cs, range) =>
       ErrorToken(
         "expect closing \" at cs " + cs.mkString + " and range " + range._1
-      )
+      ).setPos(range._1)
     },
 
     // Delimiters,
@@ -131,7 +131,7 @@ object Lexer extends Pipeline[List[File], Iterator[Token]] with Lexers {
 
     // Single line comment,
     word("//") ~ many(elem(_ != '\n')) ~ word("\n")
-      |> { cs => CommentToken(cs.mkString("")) },
+      |> { (cs, range) => CommentToken(cs.mkString("")).setPos(range._1) },
 
     // Multiline comments,
     // NOTE: Amy does not support nested multi-line comments (e.g. `/* foo /* bar */ */`).
