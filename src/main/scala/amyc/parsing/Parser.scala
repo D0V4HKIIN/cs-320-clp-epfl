@@ -11,8 +11,7 @@ import TokenKinds._
 import scallion._
 
 // The parser for Amy
-object Parser extends Pipeline[Iterator[Token], Program]
-                 with Parsers {
+object Parser extends Pipeline[Iterator[Token], Program] with Parsers {
 
   type Token = amyc.parsing.Token
   type Kind = amyc.parsing.TokenKind
@@ -51,15 +50,31 @@ object Parser extends Pipeline[Iterator[Token], Program]
 
   // A definition within a module.
   lazy val definition: Syntax[ClassOrFunDef] = 
-      ???
-     
+    lazy val functionDefinition: Syntax[ClassOrFunDef] = 
+    (kw("fn") ~ identifier ~ parameters ~ typeTree ~ expr).map {
+      case kw ~ id ~ params ~ retType ~ body => FunDef(id,params,retType,body).setPos(kw)
+    }
+    lazy val abstractClassDefinition: Syntax[ClassOrFunDef] = 
+      (kw("abstract") ~ kw("class") ~ identifier).map {
+        case kw ~ _ ~ id => AbstractClassDef(id).setPos(kw)
+      }
+    lazy val caseClassDefinition: Syntax[ClassOrFunDef] =
+      (kw("case") ~ kw("class") ~ identifier ~ many(typeTree) ~ kw("extends") ~ identifier).map {
+        case kw ~ _ ~ id ~ params ~ _ ~ parent => CaseClassDef(id, params.toList, parent).setPos(kw)
+      }
+    functionDefinition | abstractClassDefinition | caseClassDefinition
     
+  
+    
+  
   // A list of parameter definitions.
   lazy val parameters: Syntax[List[ParamDef]] = repsep(parameter, ",").map(_.toList)
 
   // A parameter definition, i.e., an identifier along with the expected type.
   lazy val parameter: Syntax[ParamDef] = 
-      ???
+    (identifier ~ kw(":") ~ typeTree).map {
+      case id ~ kw ~ tpe => ParamDef(id,tpe).setPos(kw)
+    }
    
   // A type expression.
   lazy val typeTree: Syntax[TypeTree] = primitiveType | identifierType
@@ -96,7 +111,6 @@ object Parser extends Pipeline[Iterator[Token], Program]
         ???
      
   }
-
     
   // A literal expression.
   lazy val literal: Syntax[Literal[_]] = 
@@ -106,7 +120,6 @@ object Parser extends Pipeline[Iterator[Token], Program]
   lazy val pattern: Syntax[Pattern] = recursive { 
         ???
       }
-
     
   lazy val literalPattern: Syntax[Pattern] = 
         ???
