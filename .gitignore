@@ -16,3 +16,4 @@ logs/
 *.csv
 *.dat
 .bsp
+.scalafmt.conf
