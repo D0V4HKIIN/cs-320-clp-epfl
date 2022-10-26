@@ -123,8 +123,7 @@ object Parser extends Pipeline[Iterator[Token], Program] with Parsers {
   // true, false, case, class, abstract, object, types(int, string, ...). _ (wildcard)?
   lazy val identifierType: Syntax[TypeTree] =
     (identifierQualifiedName).map {
-      case ident1 ~ Some(ident2) => // ident2 is a tuple (., ident)
-        TypeTree(ClassType(_))
+      case QualifiedName(module, name) => TypeTree(ClassType(module, name))
     }
 
   lazy val identifierQualifiedName: Syntax[QualifiedName] =
@@ -167,8 +166,8 @@ object Parser extends Pipeline[Iterator[Token], Program] with Parsers {
   lazy val classPattern: Syntax[Pattern] =
     (identifierQualifiedName ~ kw("(") ~ many(
       pattern
-    ) ~ kw(")")).map { case ident1 ~ kw1 ~ Sequence(seq1, seq2) ~ kw2 =>
-      CaseClassPattern(ident1, seq1)
+    ) ~ kw(")")).map { case ident1 ~ kw1 ~ Seq(a,b) ~ kw2 =>
+      CaseClassPattern(ident1, Seq(a,b).toList)
     }
 
   lazy val identifierPattern: Syntax[Pattern] =
