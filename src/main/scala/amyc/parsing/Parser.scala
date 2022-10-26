@@ -122,11 +122,17 @@ object Parser extends Pipeline[Iterator[Token], Program] with Parsers {
   // should reject reserved words?:
   // true, false, case, class, abstract, object, types(int, string, ...). _ (wildcard)?
   lazy val identifierType: Syntax[TypeTree] =
+    (identifierQualifiedName).map {
+      case ident1 ~ Some(ident2) => // ident2 is a tuple (., ident)
+        TypeTree(ClassType(_))
+    }
+
+  lazy val identifierQualifiedName: Syntax[QualifiedName] =
     (identifier ~ opt(kw(".") ~ identifier)).map {
       case ident1 ~ Some(ident2) => // ident2 is a tuple (., ident)
-        TypeTree(ClassType(QualifiedName(Some(ident1), ident2._2)))
+        QualifiedName(Some(ident1), ident2._2)
       case identifier ~ None =>
-        TypeTree(ClassType(QualifiedName(None, identifier)))
+        QualifiedName(None, identifier)
     }
 
   // An expression.
@@ -155,13 +161,27 @@ object Parser extends Pipeline[Iterator[Token], Program] with Parsers {
 
   // A pattern as part of a mach case.
   lazy val pattern: Syntax[Pattern] = recursive {
-    ???
+    identifierPattern | literalPattern | wildPattern | classPattern
   }
 
-//   lazy val patterns: Syntax[]
+  lazy val classPattern: Syntax[Pattern] =
+    (identifierQualifiedName ~ kw("(") ~ many(
+      pattern
+    ) ~ kw(")")).map { case ident1 ~ kw1 ~ Sequence(seq1, seq2) ~ kw2 =>
+      CaseClassPattern(ident1, seq1)
+    }
+
+  lazy val identifierPattern: Syntax[Pattern] =
+    identifier.map(IdPattern(_))
 
   lazy val literalPattern: Syntax[Pattern] =
-    ???
+    literal.map(LiteralPattern(_))
+
+//   accept(LiteralKind) {
+//     case IntLitToken(value)    => LiteralPattern(IntLiteral(value))
+//     case StringLitToken(value) => LiteralPattern(StringLiteral(value))
+//     case BoolLitToken(value)   => LiteralPattern(BooleanLiteral(value))
+//   }
 
   lazy val wildPattern: Syntax[Pattern] =
     (kw("_")).map { case kw =>
