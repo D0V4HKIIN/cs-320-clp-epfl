@@ -122,8 +122,8 @@ object Parser extends Pipeline[Iterator[Token], Program] with Parsers {
   // should reject reserved words?:
   // true, false, case, class, abstract, object, types(int, string, ...). _ (wildcard)?
   lazy val identifierType: Syntax[TypeTree] =
-    (identifierQualifiedName).map {
-      case QualifiedName(module, name) => TypeTree(ClassType(module, name))
+    (identifierQualifiedName).map { case qualifiedName =>
+      TypeTree(ClassType(qualifiedName))
     }
 
   lazy val identifierQualifiedName: Syntax[QualifiedName] =
@@ -137,8 +137,7 @@ object Parser extends Pipeline[Iterator[Token], Program] with Parsers {
   // An expression.
   // HINT: You can use `operators` to take care of associativity and precedence
   lazy val expr: Syntax[Expr] = recursive {
-    ???
-
+    simpleExpr
   }
 
   // A literal expression.
@@ -166,8 +165,8 @@ object Parser extends Pipeline[Iterator[Token], Program] with Parsers {
   lazy val classPattern: Syntax[Pattern] =
     (identifierQualifiedName ~ kw("(") ~ many(
       pattern
-    ) ~ kw(")")).map { case ident1 ~ kw1 ~ Seq(a,b) ~ kw2 =>
-      CaseClassPattern(ident1, Seq(a,b).toList)
+    ) ~ kw(")")).map { case ident1 ~ kw1 ~ seq ~ kw2 =>
+      CaseClassPattern(ident1, seq.toList)
     }
 
   lazy val identifierPattern: Syntax[Pattern] =
@@ -188,10 +187,17 @@ object Parser extends Pipeline[Iterator[Token], Program] with Parsers {
     }
 
   // HINT: It is useful to have a restricted set of expressions that don't include any more operators on the outer level.
+  // includes all of expr except binop and unaryop
   lazy val simpleExpr: Syntax[Expr] =
-    literal.up[Expr] | variableOrCall | ???
+    literal.up[Expr] | variableOrCall
 
-  lazy val variableOrCall: Syntax[Expr] = ???
+  lazy val variableOrCall: Syntax[Expr] =
+    call | identifier.map(Variable(_))
+
+  lazy val call: Syntax[Expr] =
+    (identifierQualifiedName ~ kw("(") ~ many(expr) ~ kw(")")).map {
+      case ident1 ~ kw1 ~ seq ~ kw2 => Call(ident1, seq.toList)
+    }
 
   // TODO: Other definitions.
   //       Feel free to decompose the rules in whatever way convenient.
@@ -203,7 +209,7 @@ object Parser extends Pipeline[Iterator[Token], Program] with Parsers {
     } else {
       // Set `showTrails` to true to make Scallion generate some counterexamples for you.
       // Depending on your grammar, this may be very slow.
-      val showTrails = true
+      val showTrails = false
       debug(program, showTrails)
       false
     }
