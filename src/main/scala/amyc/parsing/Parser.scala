@@ -59,9 +59,10 @@ object Parser extends Pipeline[Iterator[Token], Program] with Parsers {
   // A definition within a module.
   lazy val definition: Syntax[ClassOrFunDef] =
     lazy val functionDefinition: Syntax[ClassOrFunDef] =
-      (kw("fn") ~ identifier ~ parameters ~ typeTree ~ expr).map {
-        case kw ~ id ~ params ~ retType ~ body =>
-          FunDef(id, params, retType, body).setPos(kw)
+      (kw("fn") ~ identifier ~ kw("(") ~ parameters ~ kw("):")
+        ~ typeTree ~ kw("{") ~ expr ~ kw("}")).map {
+        case kw1 ~ id ~ kw2 ~ params ~ kw3 ~ retType ~ kw4 ~ body ~ kw5 =>
+          FunDef(id, params, retType, body).setPos(kw1)
       }
     lazy val abstractClassDefinition: Syntax[ClassOrFunDef] =
       (kw("abstract") ~ kw("class") ~ identifier).map { case kw ~ _ ~ id =>
@@ -192,12 +193,16 @@ object Parser extends Pipeline[Iterator[Token], Program] with Parsers {
     literal.up[Expr] | variableOrCall
 
   lazy val variableOrCall: Syntax[Expr] =
-    call | identifier.map(Variable(_))
-
-  lazy val call: Syntax[Expr] =
-    (identifierQualifiedName ~ kw("(") ~ many(expr) ~ kw(")")).map {
-      case ident1 ~ kw1 ~ seq ~ kw2 => Call(ident1, seq.toList)
-    }
+    (identifier ~ opt(
+      opt(kw(".") ~ identifier) ~ kw("(") ~ many(expr) ~ kw(")")
+    ))
+      .map {
+        case ident ~ None => Variable(ident)
+        case ident ~ Some(None ~ kw1 ~ args ~ kw2) =>
+          Call(QualifiedName(None, ident), args.toList)
+        case ident1 ~ Some(Some(ident2) ~ kw1 ~ args ~ kw2) =>
+          Call(QualifiedName(Some(ident1), ident2._2), args.toList)
+      }
 
   // TODO: Other definitions.
   //       Feel free to decompose the rules in whatever way convenient.
