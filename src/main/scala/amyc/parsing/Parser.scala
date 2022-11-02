@@ -59,26 +59,28 @@ object Parser extends Pipeline[Iterator[Token], Program] with Parsers {
 
   // A definition within a module.
   lazy val definition: Syntax[ClassOrFunDef] =
-    lazy val functionDefinition: Syntax[ClassOrFunDef] =
-      (kw("fn") ~ identifier ~ kw("(") ~ parameters ~ kw("):")
-        ~ typeTree ~ kw("{") ~ expr ~ kw("}")).map {
-        case kw1 ~ id ~ kw2 ~ params ~ kw3 ~ retType ~ kw4 ~ body ~ kw5 =>
-          FunDef(id, params, retType, body).setPos(kw1)
-      }
-    lazy val abstractClassDefinition: Syntax[ClassOrFunDef] =
-      (kw("abstract") ~ kw("class") ~ identifier).map { case kw ~ _ ~ id =>
-        AbstractClassDef(id).setPos(kw)
-      }
-    lazy val caseClassDefinition: Syntax[ClassOrFunDef] =
-      (kw("case") ~ kw("class") ~ identifier ~ kw("(") ~ parameters ~ kw(
-        ")"
-      ) ~ kw(
-        "extends"
-      ) ~ identifier).map { case kw ~ _ ~ id ~ _ ~ params ~ _ ~ _ ~ parent =>
-        CaseClassDef(id, params.map(_._2), parent).setPos(kw)
-      }
     functionDefinition | abstractClassDefinition | caseClassDefinition
 
+  lazy val functionDefinition: Syntax[ClassOrFunDef] =
+    (kw("fn") ~ identifier ~ delimiter("(") ~ parameters ~
+      delimiter(")") ~ delimiter(":") ~ typeTree ~ delimiter("{") ~ expr
+      ~ delimiter("}")).map {
+      case kw1 ~ id ~ kw2 ~ params ~ kw3 ~ delimiter ~ retType ~ kw4 ~ body ~ kw5 =>
+        FunDef(id, params, retType, body).setPos(kw1)
+    }
+
+  lazy val abstractClassDefinition: Syntax[ClassOrFunDef] =
+    (kw("abstract") ~ kw("class") ~ identifier).map { case kw ~ _ ~ id =>
+      AbstractClassDef(id).setPos(kw)
+    }
+  lazy val caseClassDefinition: Syntax[ClassOrFunDef] =
+    (kw("case") ~ kw("class") ~ identifier ~ kw("(") ~ parameters ~ kw(
+      ")"
+    ) ~ kw(
+      "extends"
+    ) ~ identifier).map { case kw ~ _ ~ id ~ _ ~ params ~ _ ~ _ ~ parent =>
+      CaseClassDef(id, params.map(_._2), parent).setPos(kw)
+    }
   // A list of parameter definitions.
   lazy val parameters: Syntax[List[ParamDef]] =
     repsep(parameter, ",").map(_.toList)
@@ -191,9 +193,11 @@ object Parser extends Pipeline[Iterator[Token], Program] with Parsers {
     }
 
   // HINT: It is useful to have a restricted set of expressions that don't include any more operators on the outer level.
-  // includes all of expr except binop and unaryop
+  // includes all of expr except binop and unaryop?
   lazy val simpleExpr: Syntax[Expr] =
-    literal.up[Expr] | variableOrCall | ifStatement | throwError // | parExpr
+    literal.up[Expr] | variableOrCall | ifStatement | throwError
+    // how to do parExpr without breaking LL1
+    // what class for (expr)
 
   // id or function call
   lazy val variableOrCall: Syntax[Expr] =
@@ -218,8 +222,8 @@ object Parser extends Pipeline[Iterator[Token], Program] with Parsers {
     }
 
   // expression in parentheses
-  lazy val parExpr: Syntax[Expr] = (kw("(") ~ expr ~ kw(")")).map {
-    case _ ~ expr ~ _ => ???
+  lazy val parExprRest: Syntax[Expr] = (expr ~ delimiter(")")).map {
+    case expr ~ _ => expr
   }
 
   // if then else statement
@@ -244,7 +248,7 @@ object Parser extends Pipeline[Iterator[Token], Program] with Parsers {
     } else {
       // Set `showTrails` to true to make Scallion generate some counterexamples for you.
       // Depending on your grammar, this may be very slow.
-      val showTrails = false
+      val showTrails = true
       debug(program, showTrails)
       false
     }
