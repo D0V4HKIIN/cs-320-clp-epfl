@@ -60,9 +60,9 @@ object Parser extends Pipeline[Iterator[Token], Program] with Parsers {
   // A definition within a module.
   lazy val definition: Syntax[ClassOrFunDef] =
     lazy val functionDefinition: Syntax[ClassOrFunDef] =
-      (kw("fn") ~ identifier ~ delimiter("(") ~ parameters ~ delimiter("):")
-        ~ typeTree ~ delimiter("{") ~ expr ~ delimiter("}")).map {
-        case kw1 ~ id ~ kw2 ~ params ~ kw3 ~ retType ~ kw4 ~ body ~ kw5 =>
+      (kw("fn") ~ identifier ~ delimiter("(") ~ parameters ~ delimiter(")") ~ delimiter(":") ~
+        typeTree ~ delimiter("=") ~ delimiter("{") ~ expr ~ delimiter("}")).map {
+        case kw1 ~ id ~ _ ~ params ~ _ ~ _ ~ retType ~ _ ~ _ ~ body ~ _ =>
           FunDef(id, params, retType, body).setPos(kw1)
       }
     lazy val abstractClassDefinition: Syntax[ClassOrFunDef] =
@@ -147,7 +147,7 @@ object Parser extends Pipeline[Iterator[Token], Program] with Parsers {
   // Unit litteral
   // probably messes the LL1 property
   lazy val unitLiteral: Syntax[Literal[_]] =
-    kw("()").map { case kw => UnitLiteral() }
+    (delimiter("(") ~ delimiter(")")).map { case kw => UnitLiteral() }
 
   // Litterals that are not Units (LiteralKind)
   lazy val otherLiteral: Syntax[Literal[_]] =
