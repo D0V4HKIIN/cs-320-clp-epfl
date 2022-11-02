@@ -59,8 +59,8 @@ object Parser extends Pipeline[Iterator[Token], Program] with Parsers {
   // A definition within a module.
   lazy val definition: Syntax[ClassOrFunDef] =
     lazy val functionDefinition: Syntax[ClassOrFunDef] =
-      (kw("fn") ~ identifier ~ kw("(") ~ parameters ~ kw("):")
-        ~ typeTree ~ kw("{") ~ expr ~ kw("}")).map {
+      (kw("fn") ~ identifier ~ delimiter("(") ~ parameters ~ delimiter("):")
+        ~ typeTree ~ delimiter("{") ~ expr ~ delimiter("}")).map {
         case kw1 ~ id ~ kw2 ~ params ~ kw3 ~ retType ~ kw4 ~ body ~ kw5 =>
           FunDef(id, params, retType, body).setPos(kw1)
       }
