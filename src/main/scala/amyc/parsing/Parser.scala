@@ -69,10 +69,8 @@ object Parser extends Pipeline[Iterator[Token], Program] with Parsers {
         AbstractClassDef(id).setPos(kw)
       }
     lazy val caseClassDefinition: Syntax[ClassOrFunDef] =
-      (kw("case") ~ kw("class") ~ identifier ~ kw("(") ~ parameters ~ kw(")") ~ kw(
-        "extends"
-      ) ~ identifier).map { case kw ~ _ ~ id ~ _ ~ params ~ _ ~ _ ~ parent => 
-        CaseClassDef(id, params.map(_._2), parent).setPos(kw)
+      ((kw("case") ~ kw("class") ~ identifier ~ delimiter("(") ~ parameters ~ delimiter(")") ~ kw("extends") ~ identifier)).map { 
+        case kw ~ _ ~ id ~ _ ~ params ~ _ ~ _ ~ parent => CaseClassDef(id, params.map(_._2), parent).setPos(kw)
       }
     functionDefinition | abstractClassDefinition | caseClassDefinition
 
@@ -82,7 +80,7 @@ object Parser extends Pipeline[Iterator[Token], Program] with Parsers {
 
   // A parameter definition, i.e., an identifier along with the expected type.
   lazy val parameter: Syntax[ParamDef] =
-    (identifier ~ kw(":") ~ typeTree).map { case id ~ kw ~ tpe =>
+    (identifier ~ delimiter(":") ~ typeTree).map { case id ~ kw ~ tpe =>
       ParamDef(id, tpe).setPos(kw)
     }
 
