@@ -59,35 +59,29 @@ object Parser extends Pipeline[Iterator[Token], Program] with Parsers {
 
   // A definition within a module.
   lazy val definition: Syntax[ClassOrFunDef] =
+    lazy val functionDefinition: Syntax[ClassOrFunDef] =
+      (kw("fn") ~ identifier ~ delimiter("(") ~ parameters ~ delimiter(")") ~ delimiter(":") ~
+        typeTree ~ delimiter("=") ~ delimiter("{") ~ expr ~ delimiter("}")).map {
+        case kw1 ~ id ~ _ ~ params ~ _ ~ _ ~ retType ~ _ ~ _ ~ body ~ _ =>
+          FunDef(id, params, retType, body).setPos(kw1)
+      }
+    lazy val abstractClassDefinition: Syntax[ClassOrFunDef] =
+      (kw("abstract") ~ kw("class") ~ identifier).map { case kw ~ _ ~ id =>
+        AbstractClassDef(id).setPos(kw)
+      }
+    lazy val caseClassDefinition: Syntax[ClassOrFunDef] =
+      ((kw("case") ~ kw("class") ~ identifier ~ delimiter("(") ~ parameters ~ delimiter(")") ~ kw("extends") ~ identifier)).map { 
+        case kw ~ _ ~ id ~ _ ~ params ~ _ ~ _ ~ parent => CaseClassDef(id, params.map(_._2), parent).setPos(kw)
+      }
     functionDefinition | abstractClassDefinition | caseClassDefinition
 
-  lazy val functionDefinition: Syntax[ClassOrFunDef] =
-    (kw("fn") ~ identifier ~ delimiter("(") ~ parameters ~
-      delimiter(")") ~ delimiter(":") ~ typeTree ~ delimiter("{") ~ expr
-      ~ delimiter("}")).map {
-      case kw1 ~ id ~ kw2 ~ params ~ kw3 ~ delimiter ~ retType ~ kw4 ~ body ~ kw5 =>
-        FunDef(id, params, retType, body).setPos(kw1)
-    }
-
-  lazy val abstractClassDefinition: Syntax[ClassOrFunDef] =
-    (kw("abstract") ~ kw("class") ~ identifier).map { case kw ~ _ ~ id =>
-      AbstractClassDef(id).setPos(kw)
-    }
-  lazy val caseClassDefinition: Syntax[ClassOrFunDef] =
-    (kw("case") ~ kw("class") ~ identifier ~ kw("(") ~ parameters ~ kw(
-      ")"
-    ) ~ kw(
-      "extends"
-    ) ~ identifier).map { case kw ~ _ ~ id ~ _ ~ params ~ _ ~ _ ~ parent =>
-      CaseClassDef(id, params.map(_._2), parent).setPos(kw)
-    }
   // A list of parameter definitions.
   lazy val parameters: Syntax[List[ParamDef]] =
     repsep(parameter, ",").map(_.toList)
 
   // A parameter definition, i.e., an identifier along with the expected type.
   lazy val parameter: Syntax[ParamDef] =
-    (identifier ~ kw(":") ~ typeTree).map { case id ~ kw ~ tpe =>
+    (identifier ~ delimiter(":") ~ typeTree).map { case id ~ kw ~ tpe =>
       ParamDef(id, tpe).setPos(kw)
     }
 
@@ -153,7 +147,7 @@ object Parser extends Pipeline[Iterator[Token], Program] with Parsers {
   // Unit litteral
   // probably messes the LL1 property
   lazy val unitLiteral: Syntax[Literal[_]] =
-    kw("()").map { case kw => UnitLiteral() }
+    (delimiter("(") ~ delimiter(")")).map { case kw => UnitLiteral() }
 
   // Litterals that are not Units (LiteralKind)
   lazy val otherLiteral: Syntax[Literal[_]] =
