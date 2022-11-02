@@ -9,6 +9,7 @@ import Tokens._
 import TokenKinds._
 
 import scallion._
+import scala.compiletime.ops.string
 
 // The parser for Amy
 object Parser extends Pipeline[Iterator[Token], Program] with Parsers {
@@ -190,8 +191,9 @@ object Parser extends Pipeline[Iterator[Token], Program] with Parsers {
   // HINT: It is useful to have a restricted set of expressions that don't include any more operators on the outer level.
   // includes all of expr except binop and unaryop
   lazy val simpleExpr: Syntax[Expr] =
-    literal.up[Expr] | variableOrCall
+    literal.up[Expr] | variableOrCall | ifStatement | throwError | parExpr
 
+  // id or function call
   lazy val variableOrCall: Syntax[Expr] =
     (identifier ~ opt(
       opt(kw(".") ~ identifier) ~ kw("(") ~ many(expr) ~ kw(")")
@@ -206,6 +208,32 @@ object Parser extends Pipeline[Iterator[Token], Program] with Parsers {
 
   // TODO: Other definitions.
   //       Feel free to decompose the rules in whatever way convenient.
+
+  // variable definition
+  lazy val varDef: Syntax[Expr] =
+    (kw("val") ~ parameter ~ kw("=") ~ expr ~ kw(";") ~ expr).map {
+      case _ ~ param ~ _ ~ expr1 ~ _ ~ expr2 => Let(param, expr1, expr2)
+    }
+
+  // expression in parentheses
+  lazy val parExpr: Syntax[Expr] = (kw("(") ~ expr ~ kw(")")).map {
+    case _ ~ expr ~ _ => ???
+  }
+
+  // if then else statement
+  lazy val ifStatement: Syntax[Expr] =
+    (kw("if") ~ kw("(") ~ expr ~ kw(")") ~ kw("{") ~ expr ~ kw("}") ~ kw(
+      "else"
+    ) ~ kw("{") ~ expr ~ kw("}")).map {
+      case _ ~ _ ~ boolExpr ~ _ ~ _ ~ trueExpr ~ _ ~ _ ~ _ ~ falseExpr ~ _ =>
+        Ite(boolExpr, trueExpr, falseExpr)
+    }
+
+  // error( expr )
+  lazy val throwError: Syntax[Expr] =
+    (kw("error(") ~ expr ~ kw(")")).map { case _ ~ errExpr ~ _ =>
+      Error(errExpr)
+    }
 
   // Ensures the grammar is in LL(1)
   lazy val checkLL1: Boolean = {
