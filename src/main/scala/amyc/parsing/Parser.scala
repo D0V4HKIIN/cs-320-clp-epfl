@@ -70,9 +70,11 @@ object Parser extends Pipeline[Iterator[Token], Program] with Parsers {
         AbstractClassDef(id).setPos(kw)
       }
     lazy val caseClassDefinition: Syntax[ClassOrFunDef] =
-      (kw("case") ~ kw("class") ~ identifier ~ kw("(") ~ parameters ~ kw(")") ~ kw(
+      (kw("case") ~ kw("class") ~ identifier ~ kw("(") ~ parameters ~ kw(
+        ")"
+      ) ~ kw(
         "extends"
-      ) ~ identifier).map { case kw ~ _ ~ id ~ _ ~ params ~ _ ~ _ ~ parent => 
+      ) ~ identifier).map { case kw ~ _ ~ id ~ _ ~ params ~ _ ~ _ ~ parent =>
         CaseClassDef(id, params.map(_._2), parent).setPos(kw)
       }
     functionDefinition | abstractClassDefinition | caseClassDefinition
@@ -191,7 +193,7 @@ object Parser extends Pipeline[Iterator[Token], Program] with Parsers {
   // HINT: It is useful to have a restricted set of expressions that don't include any more operators on the outer level.
   // includes all of expr except binop and unaryop
   lazy val simpleExpr: Syntax[Expr] =
-    literal.up[Expr] | variableOrCall | ifStatement | throwError | parExpr
+    literal.up[Expr] | variableOrCall | ifStatement | throwError // | parExpr
 
   // id or function call
   lazy val variableOrCall: Syntax[Expr] =
