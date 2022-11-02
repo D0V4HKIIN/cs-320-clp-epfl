@@ -218,9 +218,7 @@ object Parser extends Pipeline[Iterator[Token], Program] with Parsers {
   // id or function call
   lazy val variableOrCall: Syntax[Expr] =
     (identifier ~ opt(
-      opt(delimiter(".") ~ identifier) ~ delimiter("(") ~ many(
-        expr
-      ) ~ delimiter(")")
+      opt(delimiter(".") ~ identifier) ~ delimiter("(") ~ repsep(expr, ",") ~ delimiter(")")
     ))
       .map {
         case ident ~ None => Variable(ident)
