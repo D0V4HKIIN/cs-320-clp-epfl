@@ -207,7 +207,7 @@ object Parser extends Pipeline[Iterator[Token], Program] with Parsers {
 
   // includes all of expr except binop and unaryop?
   lazy val simpleExpr: Syntax[Expr] =
-    otherLiteral.up[Expr] | variableOrCall | ifStatement | throwError | varDef
+    otherLiteral.up[Expr] | variableOrCall | ifStatement | throwError | varDef | unitOrParExpr
 
   lazy val unitOrParExpr: Syntax[Expr] =
     (delimiter("(") ~ opt(expr) ~ delimiter(")")).map {
