@@ -193,24 +193,21 @@ object Parser extends Pipeline[Iterator[Token], Program] with Parsers {
 
   // HINT: It is useful to have a restricted set of expressions that don't include any more operators on the outer level.
 
-  // every rule in expr that starts with expr
-  // binop expr
-  // ; expr
-  // match
-  // doesn't work
-  lazy val startsWithExpr: Syntax[Expr] =
-    binopRest | sequenceRest | matchRest
-
-  lazy val binopRest: Syntax[Expr] = ???
-  lazy val sequenceRest: Syntax[Expr] =
-    (delimiter(";") ~ expr).map { case _ ~ expr => expr }
-  lazy val matchRest: Syntax[Expr] = ???
+  lazy val prior1: Syntax[Expr] = varDef // | expressionSequence
+  lazy val prior2: Syntax[Expr] = ifStatement // | matchStatement
+  lazy val prior3: Syntax[Expr] = ??? // or
+  lazy val prior4: Syntax[Expr] = ??? // and
+  lazy val prior5: Syntax[Expr] = ??? // equals
+  lazy val prior6: Syntax[Expr] = ??? // comparison
+  lazy val prior7: Syntax[Expr] = ??? // addition substraction increment
+  lazy val prior8: Syntax[Expr] = ??? // multiply, divide, modulo
+  lazy val prior9: Syntax[Expr] = ??? // unary op
+  lazy val prior10: Syntax[Expr] =
+    throwError | variableOrCall | unitOrParExpr | otherLiteral.up[Expr]
 
   // includes all of expr except binop and unaryop?
   lazy val simpleExpr: Syntax[Expr] =
     otherLiteral.up[Expr] | variableOrCall | ifStatement | throwError | varDef
-    // how to do parExpr without breaking LL1
-    // what class for (expr)
 
   lazy val unitOrParExpr: Syntax[Expr] =
     (delimiter("(") ~ opt(expr) ~ delimiter(")")).map {
