@@ -132,7 +132,7 @@ object Parser extends Pipeline[Iterator[Token], Program] with Parsers {
     }
 
   lazy val identifierQualifiedName: Syntax[QualifiedName] =
-    (identifier ~ opt(kw(".") ~ identifier)).map {
+    (identifier ~ opt(delimiter(".") ~ identifier)).map {
       case ident1 ~ Some(ident2) => // ident2 is a tuple (., ident)
         QualifiedName(Some(ident1), ident2._2)
       case identifier ~ None =>
@@ -149,12 +149,12 @@ object Parser extends Pipeline[Iterator[Token], Program] with Parsers {
   lazy val literal: Syntax[Literal[_]] =
     unitLiteral | otherLiteral
 
-  // Unit litteral
+  // Unit literal
   // probably messes the LL1 property
   lazy val unitLiteral: Syntax[Literal[_]] =
     (delimiter("(") ~ delimiter(")")).map { case kw => UnitLiteral() }
 
-  // Litterals that are not Units (LiteralKind)
+  // Literals that are not Units (LiteralKind)
   lazy val otherLiteral: Syntax[Literal[_]] =
     accept(LiteralKind) {
       case IntLitToken(value)    => IntLiteral(value)
@@ -168,9 +168,9 @@ object Parser extends Pipeline[Iterator[Token], Program] with Parsers {
   }
 
   lazy val classPattern: Syntax[Pattern] =
-    (identifierQualifiedName ~ kw("(") ~ many(
+    (identifierQualifiedName ~ delimiter("(") ~ many(
       pattern
-    ) ~ kw(")")).map { case ident1 ~ kw1 ~ seq ~ kw2 =>
+    ) ~ delimiter(")")).map { case ident1 ~ kw1 ~ seq ~ kw2 =>
       CaseClassPattern(ident1, seq.toList)
     }
 
@@ -194,14 +194,22 @@ object Parser extends Pipeline[Iterator[Token], Program] with Parsers {
   // HINT: It is useful to have a restricted set of expressions that don't include any more operators on the outer level.
   // includes all of expr except binop and unaryop?
   lazy val simpleExpr: Syntax[Expr] =
-    literal.up[Expr] | variableOrCall | ifStatement | throwError
+    otherLiteral.up[Expr] | variableOrCall | ifStatement | throwError
     // how to do parExpr without breaking LL1
     // what class for (expr)
+
+  lazy val unitOrParExpr: Syntax[Expr] =
+    (delimiter("(") ~ opt(expr) ~ delimiter(")")).map {
+      case del1 ~ None ~ del2       => UnitLiteral()
+      case del1 ~ Some(expr) ~ del2 => expr
+    }
 
   // id or function call
   lazy val variableOrCall: Syntax[Expr] =
     (identifier ~ opt(
-      opt(kw(".") ~ identifier) ~ kw("(") ~ many(expr) ~ kw(")")
+      opt(delimiter(".") ~ identifier) ~ delimiter("(") ~ many(
+        expr
+      ) ~ delimiter(")")
     ))
       .map {
         case ident ~ None => Variable(ident)
@@ -216,28 +224,27 @@ object Parser extends Pipeline[Iterator[Token], Program] with Parsers {
 
   // variable definition
   lazy val varDef: Syntax[Expr] =
-    (kw("val") ~ parameter ~ kw("=") ~ expr ~ kw(";") ~ expr).map {
-      case _ ~ param ~ _ ~ expr1 ~ _ ~ expr2 => Let(param, expr1, expr2)
-    }
-
-  // expression in parentheses
-  lazy val parExprRest: Syntax[Expr] = (expr ~ delimiter(")")).map {
-    case expr ~ _ => expr
-  }
+    (kw("val") ~ parameter ~ delimiter("=") ~ expr ~ delimiter(";") ~ expr)
+      .map { case _ ~ param ~ _ ~ expr1 ~ _ ~ expr2 =>
+        Let(param, expr1, expr2)
+      }
 
   // if then else statement
   lazy val ifStatement: Syntax[Expr] =
-    (kw("if") ~ kw("(") ~ expr ~ kw(")") ~ kw("{") ~ expr ~ kw("}") ~ kw(
+    (kw("if") ~ delimiter("(") ~ expr ~ delimiter(")") ~ delimiter(
+      "{"
+    ) ~ expr ~ delimiter("}") ~ kw(
       "else"
-    ) ~ kw("{") ~ expr ~ kw("}")).map {
+    ) ~ delimiter("{") ~ expr ~ delimiter("}")).map {
       case _ ~ _ ~ boolExpr ~ _ ~ _ ~ trueExpr ~ _ ~ _ ~ _ ~ falseExpr ~ _ =>
         Ite(boolExpr, trueExpr, falseExpr)
     }
 
   // error( expr )
   lazy val throwError: Syntax[Expr] =
-    (kw("error(") ~ expr ~ kw(")")).map { case _ ~ errExpr ~ _ =>
-      Error(errExpr)
+    (kw("error") ~ delimiter("(") ~ expr ~ delimiter(")")).map {
+      case _ ~ _ ~ errExpr ~ _ =>
+        Error(errExpr)
     }
 
   // Ensures the grammar is in LL(1)
