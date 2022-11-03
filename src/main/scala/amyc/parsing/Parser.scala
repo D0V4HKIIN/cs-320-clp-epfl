@@ -142,8 +142,8 @@ object Parser extends Pipeline[Iterator[Token], Program] with Parsers {
   // An expression.
   // HINT: You can use `operators` to take care of associativity and precedence
   lazy val expr: Syntax[Expr] = recursive {
-    simpleExpr // 15 fails
-    // prior10 | prior9 | prior3to8 | prior2 | prior1 // not LL1
+    simpleExpr | prior2 | prior1 // 14 fails
+    // prior10 | prior9 | prior3to8  // not LL1
   }
 
 
