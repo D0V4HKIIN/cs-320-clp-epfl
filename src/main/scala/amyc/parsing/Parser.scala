@@ -166,9 +166,9 @@ object Parser extends Pipeline[Iterator[Token], Program] with Parsers {
     }
 
   // A pattern as part of a mach case.
-  lazy val pattern: Syntax[Pattern] = recursive {
-    literalPattern | wildPattern | classPattern | unitPattern
-  }
+  lazy val pattern: Syntax[Pattern] = { unitPattern | literalPattern | wildPattern }
+     //literalPattern | wildPattern | unitPattern //| classPattern
+  
 
   lazy val classPattern: Syntax[Pattern] =
     (identifier ~ opt(opt(delimiter(".") ~>~ identifier) ~<~ delimiter("(") ~ many(
@@ -238,7 +238,8 @@ object Parser extends Pipeline[Iterator[Token], Program] with Parsers {
   // val unaryOps: Syntax[String] = negative | not
 
   // i don't know if this should use simpleExpr
-  val prefixed: Syntax[Expr] = (opt(op("!") |  op("-"))  ~ simpleExpr).map {
+  
+  lazy val prefixed: Syntax[Expr] = (opt(op("!") |  op("-"))  ~ simpleExpr).map {
     // Defines how to convert an `op` and an `expr` into an `expr`.
     case Some(op @ OperatorToken("-")) ~ expr => Neg(expr).setPos(op)
     case Some(op @ OperatorToken("!")) ~ expr => Not(expr).setPos(op)
