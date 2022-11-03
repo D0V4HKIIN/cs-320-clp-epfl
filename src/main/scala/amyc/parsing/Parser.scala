@@ -142,7 +142,8 @@ object Parser extends Pipeline[Iterator[Token], Program] with Parsers {
   // An expression.
   // HINT: You can use `operators` to take care of associativity and precedence
   lazy val expr: Syntax[Expr] = recursive {
-    simpleExpr
+    simpleExpr // 15 fails
+    // prior10 | prior9 | prior3to8 | prior2 | prior1 // not LL1
   }
 
   // A literal expression.
@@ -195,19 +196,111 @@ object Parser extends Pipeline[Iterator[Token], Program] with Parsers {
 
   lazy val prior1: Syntax[Expr] = varDef // | expressionSequence
   lazy val prior2: Syntax[Expr] = ifStatement // | matchStatement
-  lazy val prior3: Syntax[Expr] = ??? // or
-  lazy val prior4: Syntax[Expr] = ??? // and
-  lazy val prior5: Syntax[Expr] = ??? // equals
-  lazy val prior6: Syntax[Expr] = ??? // comparison
-  lazy val prior7: Syntax[Expr] = ??? // addition substraction increment
-  lazy val prior8: Syntax[Expr] = ??? // multiply, divide, modulo
-  lazy val prior9: Syntax[Expr] = ??? // unary op
-  lazy val prior10: Syntax[Expr] =
-    throwError | variableOrCall | unitOrParExpr | otherLiteral.up[Expr]
+  lazy val prior3to9: Syntax[Expr] = operation // maybe prior3to9
+  // should maybe be removed cuz it maybe already in operation
+  // lazy val prior9: Syntax[Expr] = prefixed // unary ops
+  lazy val prior10: Syntax[Expr] = simpleExpr
+  // throwError | variableOrCall | unitOrParExpr | otherLiteral
+  // .up[Expr] // simpleExpr
+
+  // interesting stuff: https://github.com/epfl-lara/scallion/blob/main/example/calculator/Calculator.scala
+
+  // message from toni:
+  // I will be back in half an hr, but the idea is to put expr of different priorities in different val, and surrounding ones with high priority with low priority. So simpleExpr is the one with highest priority, then the one follows is Unary, so u want sth like "Unary = opt(op(!) | Op(-))~simpleExpr"
+
+  // copied and modified from doc: https://epfl-lara.github.io/scallion/scallion/Operators.html#prefixes[Op,A](op:Operators.this.Syntax[Op],elem:Operators.this.Syntax[A])(function:(Op,A)=%3EA,inverse:PartialFunction[A,(Op,A)]):Operators.this.Syntax[A]
+  val unaryOps: Syntax[String] = negative | not
+
+  // i don't know if this should use simpleExpr
+  val prefixed: Syntax[Expr] = (opt(op("-") | op("!")) ~ simpleExpr).map {
+    // Defines how to convert an `op` and an `expr` into an `expr`.
+    case Some(op @ OperatorToken("-")) ~ expr => Neg(expr)
+    case Some(op @ OperatorToken("!")) ~ expr => Not(expr)
+    case None ~ expr                          => expr
+  }
+
+  lazy val operation: Syntax[Expr] = recursive { // makes unary ops work idk
+    operators(prefixed)(
+      // Defines the different operators, by decreasing priority.
+      // not could be Equals(False, rhs)
+      // neg could be Minus(0, rhs) but how do we differenciate (a - b) and (-b)
+      multiply | division | modulo is LeftAssociative,
+      addition | substraction | concatenation is LeftAssociative,
+      lessThan | lessEquals is LeftAssociative,
+      equals is LeftAssociative,
+      and is LeftAssociative,
+      or is LeftAssociative
+    ) {
+      // Defines how to apply the various operators.
+      case (lhs, "*", rhs) => Times(lhs, rhs).setPos(lhs)
+      case (lhs, "/", rhs) => Div(lhs, rhs).setPos(lhs)
+      case (lhs, "%", rhs) => Mod(lhs, rhs).setPos(lhs)
+
+      case (lhs, "+", rhs)  => Plus(lhs, rhs).setPos(lhs)
+      case (lhs, "-", rhs)  => Minus(lhs, rhs).setPos(lhs)
+      case (lhs, "++", rhs) => Concat(lhs, rhs).setPos(lhs)
+
+      case (lhs, "<", rhs)  => LessThan(lhs, rhs).setPos(lhs)
+      case (lhs, "<=", rhs) => LessEquals(lhs, rhs).setPos(lhs)
+
+      case (lhs, "==", rhs) => Equals(lhs, rhs).setPos(lhs)
+
+      case (lhs, "&&", rhs) => And(lhs, rhs).setPos(lhs)
+
+      case (lhs, "||", rhs) => Or(lhs, rhs).setPos(lhs)
+    }
+  }
+
+  lazy val or: Syntax[String] = accept(OperatorKind("||")) { case _ =>
+    "||"
+  }
+
+  lazy val and: Syntax[String] = accept(OperatorKind("&&")) { case _ =>
+    "&&"
+  }
+
+  lazy val equals: Syntax[String] = accept(OperatorKind("==")) { case _ =>
+    "=="
+  }
+
+  lazy val lessThan: Syntax[String] = accept(OperatorKind("<")) { case _ =>
+    "<"
+  }
+  lazy val lessEquals: Syntax[String] = accept(OperatorKind("<=")) { case _ =>
+    "<="
+  }
+
+  lazy val addition: Syntax[String] = accept(OperatorKind("+")) { case _ =>
+    "+"
+  }
+  lazy val substraction: Syntax[String] = accept(OperatorKind("-")) { case _ =>
+    "-"
+  }
+  lazy val concatenation: Syntax[String] = accept(OperatorKind("++")) {
+    case _ =>
+      "++"
+  }
+
+  lazy val multiply: Syntax[String] = accept(OperatorKind("*")) { case _ =>
+    "*"
+  }
+  lazy val division: Syntax[String] = accept(OperatorKind("/")) { case _ =>
+    "/"
+  }
+  lazy val modulo: Syntax[String] = accept(OperatorKind("%")) { case _ =>
+    "%"
+  }
+
+  lazy val negative: Syntax[String] = accept(OperatorKind("-")) { case _ =>
+    "-"
+  }
+  lazy val not: Syntax[String] = accept(OperatorKind("!")) { case _ =>
+    "!"
+  }
 
   // includes all of expr except binop and unaryop?
   lazy val simpleExpr: Syntax[Expr] =
-    otherLiteral.up[Expr] | variableOrCall | ifStatement | throwError | varDef
+    otherLiteral.up[Expr] | unitOrParExpr | variableOrCall | throwError // | ifStatement | varDef
 
   lazy val unitOrParExpr: Syntax[Expr] =
     (delimiter("(") ~ opt(expr) ~ delimiter(")")).map {
@@ -242,11 +335,9 @@ object Parser extends Pipeline[Iterator[Token], Program] with Parsers {
 
   // if then else statement
   lazy val ifStatement: Syntax[Expr] =
-    (kw("if") ~ delimiter("(") ~ expr ~ delimiter(")") ~ delimiter(
-      "{"
-    ) ~ expr ~ delimiter("}") ~ kw(
-      "else"
-    ) ~ delimiter("{") ~ expr ~ delimiter("}")).map {
+    (kw("if") ~ delimiter("(") ~ expr ~ delimiter(")") ~ delimiter("{")
+      ~ expr ~ delimiter("}") ~ kw("else") ~ delimiter("{") ~ expr ~
+      delimiter("}")).map {
       case _ ~ _ ~ boolExpr ~ _ ~ _ ~ trueExpr ~ _ ~ _ ~ _ ~ falseExpr ~ _ =>
         Ite(boolExpr, trueExpr, falseExpr)
     }
