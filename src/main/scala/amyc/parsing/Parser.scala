@@ -142,20 +142,20 @@ object Parser extends Pipeline[Iterator[Token], Program] with Parsers {
   // An expression.
   // HINT: You can use `operators` to take care of associativity and precedence
   lazy val expr: Syntax[Expr] = recursive {
-    simpleExpr | prior2 | prior1 // 14 fails
-    // prior10 | prior9 | prior3to8  // not LL1
+    prior1 // 14 fails
+    // simpleExpr | prior2 | prior10 | prior9 | prior3to8  // not LL1
   }
 
 
 
   // A literal expression.
   lazy val literal: Syntax[Literal[_]] =
-    unitLiteral | otherLiteral
+    otherLiteral
 
   // Unit literal
   // probably messes the LL1 property
-  lazy val unitLiteral: Syntax[Literal[_]] =
-    (delimiter("(") ~ delimiter(")")).map { case kw => UnitLiteral() }
+  // lazy val unitLiteral: Syntax[Literal[_]] =
+  //   (delimiter("(") ~ delimiter(")")).map { case kw => UnitLiteral() }
 
   // Literals that are not Units (LiteralKind)
   lazy val otherLiteral: Syntax[Literal[_]] =
@@ -167,18 +167,23 @@ object Parser extends Pipeline[Iterator[Token], Program] with Parsers {
 
   // A pattern as part of a mach case.
   lazy val pattern: Syntax[Pattern] = recursive {
-    identifierPattern | literalPattern | wildPattern | classPattern
+    literalPattern | wildPattern | classPattern | unitPattern
   }
 
   lazy val classPattern: Syntax[Pattern] =
-    (identifierQualifiedName ~ delimiter("(") ~ many(
+    (identifier ~ opt(opt(delimiter(".") ~>~ identifier) ~<~ delimiter("(") ~ many(
       pattern
-    ) ~ delimiter(")")).map { case ident1 ~ kw1 ~ seq ~ kw2 =>
-      CaseClassPattern(ident1, seq.toList)
+    ) ~<~ delimiter(")"))).map { 
+      case ident1 ~ Some(Some(ident2) ~ seq) => CaseClassPattern(QualifiedName(Some(ident1), ident2), seq.toList)
+      case ident1 ~ Some(None ~ seq) => CaseClassPattern(QualifiedName(None, ident1), seq.toList)
+      case ident ~ None => IdPattern(ident)
     }
+    
+  lazy val unitPattern: Syntax[Pattern] =
+    (delimiter("(") ~ delimiter(")")).map { case _ => LiteralPattern(UnitLiteral()) }
 
-  lazy val identifierPattern: Syntax[Pattern] =
-    identifier.map(IdPattern(_))
+  // lazy val identifierPattern: Syntax[Pattern] =
+  //   identifier.map(IdPattern(_))
 
   lazy val literalPattern: Syntax[Pattern] =
     literal.map(LiteralPattern(_))
@@ -196,8 +201,8 @@ object Parser extends Pipeline[Iterator[Token], Program] with Parsers {
 
   // HINT: It is useful to have a restricted set of expressions that don't include any more operators on the outer level.
 
-  lazy val prior1: Syntax[Expr] = varDef // | expressionSequence
-  lazy val prior2: Syntax[Expr] = ifStatement // | matchStatement
+  lazy val prior1: Syntax[Expr] = varDef | expressionSequence
+  lazy val prior2: Syntax[Expr] = matchStatement
   lazy val prior3to9: Syntax[Expr] = operation // maybe prior3to9
   // should maybe be removed cuz it maybe already in operation
   // lazy val prior9: Syntax[Expr] = prefixed // unary ops
@@ -205,21 +210,40 @@ object Parser extends Pipeline[Iterator[Token], Program] with Parsers {
   // throwError | variableOrCall | unitOrParExpr | otherLiteral
   // .up[Expr] // simpleExpr
 
+  lazy val expressionSequence: Syntax[Expr] =
+    (prior2 ~ opt(";" ~>~ expr)).map{
+      case expr ~ None => expr
+      case expr1 ~ Some(expr2) => Sequence(expr1, expr2)// expr.foldLeft(tail.head)((e1, e2) => Sequence(e1, e2))
+    }
+
+  lazy val matchStatement: Syntax[Expr] =
+    ((prior3to9 | ifStatement) ~ many(kw("match") ~>~ delimiter("{") ~>~ many1(matchCase) ~<~ delimiter("}"))).map{
+      case scrut ~ matches =>
+        matches.toList match
+          case head :: next => next.foldLeft(Match(scrut, head.toList))((z, x) => Match(z, x.toList))
+          case Nil => scrut
+    }
+
+
+  lazy val matchCase: Syntax[MatchCase] =
+    (kw("case") ~ pattern ~ delimiter("=>") ~ expr).map{
+      case kw ~ pattern ~ del ~ expr => MatchCase(pattern, expr)
+    }
+
   // interesting stuff: https://github.com/epfl-lara/scallion/blob/main/example/calculator/Calculator.scala
 
-  // message from toni:
-  // I will be back in half an hr, but the idea is to put expr of different priorities in different val, and surrounding ones with high priority with low priority. So simpleExpr is the one with highest priority, then the one follows is Unary, so u want sth like "Unary = opt(op(!) | Op(-))~simpleExpr"
+//e idea is to put expr of different priorities in different val, and surrounding ones with high priority with low priority. So simpleExpr is the one with highest priority, then the one follows is Unary, so u want sth like "Unary = opt(op(!) | Op(-))~simpleExpr"
 
   // copied and modified from doc: https://epfl-lara.github.io/scallion/scallion/Operators.html#prefixes[Op,A](op:Operators.this.Syntax[Op],elem:Operators.this.Syntax[A])(function:(Op,A)=%3EA,inverse:PartialFunction[A,(Op,A)]):Operators.this.Syntax[A]
-  val unaryOps: Syntax[String] = negative | not
+  // val unaryOps: Syntax[String] = negative | not
 
   // i don't know if this should use simpleExpr
-  val prefixed: Syntax[Expr] = (opt(op("-") | op("!")) ~ simpleExpr).map {
+  val prefixed: Syntax[Expr] = (opt(op("!") |  op("-"))  ~ simpleExpr).map {
     // Defines how to convert an `op` and an `expr` into an `expr`.
-    case Some(op @ OperatorToken("-")) ~ expr => Neg(expr)
-    case Some(op @ OperatorToken("!")) ~ expr => Not(expr)
-    case None ~ expr                          => expr
-  }
+    case Some(op @ OperatorToken("-")) ~ expr => Neg(expr).setPos(op)
+    case Some(op @ OperatorToken("!")) ~ expr => Not(expr).setPos(op)
+    case None ~ sExpr => sExpr
+  } 
 
   lazy val operation: Syntax[Expr] = recursive { // makes unary ops work idk
     operators(prefixed)(
@@ -306,7 +330,7 @@ object Parser extends Pipeline[Iterator[Token], Program] with Parsers {
 
   lazy val unitOrParExpr: Syntax[Expr] =
     (delimiter("(") ~ opt(expr) ~ delimiter(")")).map {
-      case del1 ~ None ~ del2       => UnitLiteral()
+      case del1 ~ None ~ del2       => UnitLiteral().setPos(del1)
       case del1 ~ Some(expr) ~ del2 => expr
     }
 
@@ -328,7 +352,7 @@ object Parser extends Pipeline[Iterator[Token], Program] with Parsers {
 
   // variable definition
   lazy val varDef: Syntax[Expr] =
-    (kw("val") ~ parameter ~ delimiter("=") ~ expr ~ delimiter(";") ~ expr)
+    (kw("val") ~ parameter ~ delimiter("=") ~ prior2 ~ delimiter(";") ~ expr)
       .map { case value ~ param ~ _ ~ expr1 ~ _ ~ expr2 =>
         Let(param, expr1, expr2).setPos(value)
       }
