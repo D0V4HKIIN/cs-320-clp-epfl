@@ -166,19 +166,23 @@ object Parser extends Pipeline[Iterator[Token], Program] with Parsers {
     }
 
   // A pattern as part of a mach case.
-  lazy val pattern: Syntax[Pattern] = { unitPattern | literalPattern | wildPattern }
+  lazy val pattern: Syntax[Pattern] = recursive { unitPattern | literalPattern | wildPattern | classPattern }
      //literalPattern | wildPattern | unitPattern //| classPattern
   
 
-  lazy val classPattern: Syntax[Pattern] =
-    (identifier ~ opt(opt(delimiter(".") ~>~ identifier) ~<~ delimiter("(") ~ many(
-      pattern
-    ) ~<~ delimiter(")"))).map { 
-      case ident1 ~ Some(Some(ident2) ~ seq) => CaseClassPattern(QualifiedName(Some(ident1), ident2), seq.toList)
-      case ident1 ~ Some(None ~ seq) => CaseClassPattern(QualifiedName(None, ident1), seq.toList)
-      case ident ~ None => IdPattern(ident)
-    }
+  // lazy val classPattern: Syntax[Pattern] =
+  //   (identifier ~ opt(opt(delimiter(".") ~>~ identifier) ~<~ delimiter("(") ~ many(
+  //     pattern
+  //   ) ~<~ delimiter(")"))).map { 
+  //     case ident1 ~ Some(Some(ident2) ~ seq) => CaseClassPattern(QualifiedName(Some(ident1), ident2), seq.toList)
+  //     case ident1 ~ Some(None ~ seq) => CaseClassPattern(QualifiedName(None, ident1), seq.toList)
+  //     case ident ~ None => IdPattern(ident)
+  //   }
+  lazy val classPattern: Syntax[Pattern] = identifier.map{
+    case ident => IdPattern(ident)
+  }
     
+
   lazy val unitPattern: Syntax[Pattern] =
     (delimiter("(") ~ delimiter(")")).map { case _ => LiteralPattern(UnitLiteral()) }
 
