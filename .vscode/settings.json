@@ -5,7 +5,7 @@
     "editor.acceptSuggestionOnEnter": "smart",
     // Auto-added by metals
     "files.watcherExclude": {
-      "**/target": true
-    },
+		"**/target": true
+	},
     "metals.fallbackScalaVersion": "3.1.3"
   }

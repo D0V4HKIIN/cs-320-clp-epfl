@@ -9,44 +9,44 @@ import silex._
 import amyc.utils.Position
 
 // The lexer for Amy.
-object Lexer extends Pipeline[List[File], Iterator[Token]]
-                with Lexers {
+object Lexer extends Pipeline[List[File], Iterator[Token]] with Lexers {
 
-  /** Tiny Silex reference:
-    * ==============================
-    * Silex's lexer essentially allows you to define a list of regular expressions
-    * in their order of priority. To tokenize a given input stream of characters, each
-    * individual regular expression is applied in turn. If a given expression matches, it
-    * is used to produce a token of maximal length. Whenever a regular expression does not
-    * match, the expression of next-highest priority is tried.
-    * The result is a stream of tokens.
+  /** Tiny Silex reference: \============================== Silex's lexer
+    * essentially allows you to define a list of regular expressions in their
+    * order of priority. To tokenize a given input stream of characters, each
+    * individual regular expression is applied in turn. If a given expression
+    * matches, it is used to produce a token of maximal length. Whenever a
+    * regular expression does not match, the expression of next-highest priority
+    * is tried. The result is a stream of tokens.
     *
     * Regular expressions `r` can be built using the following operators:
-    *   - `word("abc")`  matches the sequence "abc" exactly
-    *   - `r1 | r2`      matches either expression `r1` or expression `r2`
-    *   - `r1 ~ r2`      matches `r1` followed by `r2`
-    *   - `oneOf("xy")`  matches either "x" or "y"
-    *                    (i.e., it is a shorthand of `word` and `|` for single characters)
-    *   - `elem(c)`      matches character `c`
-    *   - `elem(f)`      matches any character for which the boolean predicate `f` holds 
-    *   - `opt(r)`       matches `r` or nothing at all
-    *   - `many(r)`      matches any number of repetitions of `r` (including none at all)
-    *   - `many1(r)`     matches any non-zero number of repetitions of `r`
-    *  
-    * To define the token that should be output for a given expression, one can use
-    * the `|>` combinator with an expression on the left-hand side and a function
-    * producing the token on the right. The function is given the sequence of matched
-    * characters and the source-position range as arguments.
-    * 
+    *   - `word("abc")` matches the sequence "abc" exactly
+    *   - `r1 | r2` matches either expression `r1` or expression `r2`
+    *   - `r1 ~ r2` matches `r1` followed by `r2`
+    *   - `oneOf("xy")` matches either "x" or "y" (i.e., it is a shorthand of
+    *     `word` and `|` for single characters)
+    *   - `elem(c)` matches character `c`
+    *   - `elem(f)` matches any character for which the boolean predicate `f`
+    *     holds
+    *   - `opt(r)` matches `r` or nothing at all
+    *   - `many(r)` matches any number of repetitions of `r` (including none at
+    *     all)
+    *   - `many1(r)` matches any non-zero number of repetitions of `r`
+    *
+    * To define the token that should be output for a given expression, one can
+    * use the `|>` combinator with an expression on the left-hand side and a
+    * function producing the token on the right. The function is given the
+    * sequence of matched characters and the source-position range as arguments.
+    *
     * For instance,
     *
-    *   `elem(_.isDigit) ~ word("kg") |> {
-    *     (cs, range) => WeightLiteralToken(cs.mkString).setPos(range._1)) }`
+    * `elem(_.isDigit) ~ word("kg") |> { (cs, range) =>
+    * WeightLiteralToken(cs.mkString).setPos(range._1)) }`
     *
-    * will match a single digit followed by the characters "kg" and turn them into a
-    * "WeightLiteralToken" whose value will be the full string matched (e.g. "1kg").
+    * will match a single digit followed by the characters "kg" and turn them
+    * into a "WeightLiteralToken" whose value will be the full string matched
+    * (e.g. "1kg").
     */
-
 
   // Type of characters consumed.
   type Character = Char
@@ -62,50 +62,101 @@ object Lexer extends Pipeline[List[File], Iterator[Token]]
   val lexer = Lexer(
     // Keywords,
     word("abstract") | word("case") | word("class") |
-    word("fn") | word("else") | word("extends") |
-    word("if") | word("match") | word("object") |
-    word("val") | word("error") | word("_") | word("end")
+      word("fn") | word("else") | word("extends") |
+      word("if") | word("match") | word("object") |
+      word("val") | word("error") | word("_") | word("end")
       |> { (cs, range) => KeywordToken(cs.mkString).setPos(range._1) },
 
     // Primitive type names,
-        // TODO
-        
+    word("Int") | word("String") | word("Boolean") | word("Unit") | word(
+      "Id"
+    ) |> { (cs, range) => PrimTypeToken(cs.mkString).setPos(range._1) },
 
-    // Boolean literals,
-        // TODO
-         
+    // Boolean literals
+    word("true") | word("false") |> { (cs, range) =>
+      BoolLitToken(cs.mkString == "true").setPos(range._1)
+    },
 
     // Operators,
-        // NOTE: You can use `oneof("abc")` as a shortcut for `word("a") | word("b") | word("c")`
-    // TODO
-        
+    // NOTE: You can use `oneof("abc")` as a shortcut for `word("a") | word("b") | word("c")`
+    oneOf("+-*/%<!") | word("<=") | word("&&") | word("||") | word("==")
+      | word("++")
+      |> { (cs, range) =>
+        OperatorToken(cs.mkString).setPos(range._1)
+      },
+
     // Identifiers,
-        // TODO
-        
+    elem(_.isLetter) ~ many(elem(_.isLetterOrDigit) | word("_")) |> {
+      (cs, range) =>
+        IdentifierToken(cs.mkString).setPos(range._1)
+    },
+
     // Integer literal,
-        // NOTE: Make sure to handle invalid (e.g. overflowing) integer values safely by
+    // NOTE: Make sure to handle invalid (e.g. overflowing) integer values safely by
     //       emitting an ErrorToken instead.
-    // TODO
-        
+    many1(elem(_.isDigit)) |> { (cs, range) =>
+      try {
+        IntLitToken(cs.mkString.toInt).setPos(range._1)
+      } catch {
+        case _ =>
+          ErrorToken(
+            "couldn't create int literal " + cs.mkString + " at " + range._1
+          ).setPos(range._1)
+      }
+    },
+
     // String literal,
-        // TODO
-        
+    word("\"") ~ many(elem(c => c != '\n' && c != '"')) ~ word("\"") |> {
+      (cs, range) =>
+        StringLitToken(cs.mkString.substring(1, cs.mkString.length() - 1))
+          .setPos(range._1)
+    },
+
+    // error handling on string literals
+    word("\"") ~ many(elem(c => c != '"')) ~ word("\n") |> { (cs, range) =>
+      ErrorToken(
+        "expect closing \" at cs " + cs.mkString + " and range " + range._1
+      ).setPos(range._1)
+    },
+
     // Delimiters,
-        // TODO
-    
+    // found in the tests???
+    oneOf("{}(),:.=;") | word("=>") |> { (cs, range) =>
+      DelimiterToken(cs.mkString).setPos(range._1)
+    },
 
     // Whitespace,
-        // TODO
-    
+    many1(elem(_.isWhitespace)) |> { (cs, range) =>
+      SpaceToken().setPos(range._1)
+    },
+
     // Single line comment,
-    word("//") ~ many(elem(_ != '\n'))
-      |> { cs => CommentToken(cs.mkString("")) },
+    word("//") ~ many(elem(_ != '\n')) ~ word("\n")
+      |> { (cs, range) => CommentToken(cs.mkString("")).setPos(range._1) },
 
     // Multiline comments,
-        // NOTE: Amy does not support nested multi-line comments (e.g. `/* foo /* bar */ */`).
+    // NOTE: Amy does not support nested multi-line comments (e.g. `/* foo /* bar */ */`).
     //       Make sure that unclosed multi-line comments result in an ErrorToken.
-    // TODO
-      ) onError {
+    // spent around 7 hours on this
+    // many((many1(elem(_ == '*')) ~ elem(_ != '/')) | elem(_ != '*'))
+    // many((many1(elem(_ == '*')) ~ elem(_ != '/')) | elem(_ != '*'))
+    // elem('*') | many1(word("*"))~(elem('*') | elem(c => c != '*' && c != '/'))
+    word("/*") ~ many(
+      elem(_ != '*') | many1(elem(_ == '*') ~ elem(c => c != '*' && c != '/'))
+    ) ~ many1(elem(_ == '*')) ~ elem(_ == '/') |> { (cs, range) =>
+      CommentToken(cs.mkString).setPos(range._1)
+    },
+    word("/*") ~ many(
+      elem(_ != '*') | many1(elem(_ == '*') ~ elem(c => c != '*' && c != '/'))
+    ) |> { (cs, range) =>
+      ErrorToken("Unclosed comment " + cs.mkString + " at " + range._1)
+        .setPos(range._1)
+    },
+    any |> { (cs, range) =>
+      ErrorToken("not implemented " + cs.mkString + " at " + range._1)
+        .setPos(range._1)
+    }
+  ) onError {
     // We also emit ErrorTokens for Silex-handled errors.
     (cs, range) => ErrorToken(cs.mkString).setPos(range._1)
   } onEnd {
@@ -113,19 +164,31 @@ object Lexer extends Pipeline[List[File], Iterator[Token]]
     pos => EOFToken().setPos(pos)
   }
 
-  override def run(ctx: amyc.utils.Context)(files: List[File]): Iterator[Token] = {
+  override def run(
+      ctx: amyc.utils.Context
+  )(files: List[File]): Iterator[Token] = {
     var it = Seq[Token]().iterator
 
     for (file <- files) {
       val source = Source.fromFile(file.toString, SourcePositioner(file))
-      it ++= lexer.spawn(source).filter {
-        token =>
-	                  // TODO: Remove all whitespace and comment tokens
-          ???
-                }.map {
-        case token@ErrorToken(error) => ctx.reporter.fatal("Unknown token at " + token.position + ": " + error)
-        case token => token
-      }
+      it ++= lexer
+        .spawn(source)
+        .filter { token =>
+          // TODO: Remove all whitespace and comment tokens
+          token match {
+            case CommentToken(token) => false
+            case SpaceToken()        => false
+            case _                   => true
+          }
+
+        }
+        .map {
+          case token @ ErrorToken(error) =>
+            ctx.reporter.fatal(
+              "Unknown token at " + token.position + ": " + error
+            )
+          case token => token
+        }
     }
     it
   }
