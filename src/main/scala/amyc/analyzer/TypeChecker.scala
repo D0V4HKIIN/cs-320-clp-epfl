@@ -7,7 +7,8 @@ import amyc.ast.Identifier
 
 // The type checker for Amy
 // Takes a symbolic program and rejects it if it does not follow the Amy typing rules.
-object TypeChecker extends Pipeline[(Program, SymbolTable), (Program, SymbolTable)] {
+object TypeChecker
+    extends Pipeline[(Program, SymbolTable), (Program, SymbolTable)] {
 
   def run(ctx: Context)(v: (Program, SymbolTable)): (Program, SymbolTable) = {
     import ctx.reporter._
@@ -29,53 +30,98 @@ object TypeChecker extends Pipeline[(Program, SymbolTable), (Program, SymbolTabl
     // The environment `env` contains all currently available bindings (you will have to
     //  extend these, e.g., to account for local variables).
     // Returns a list of constraints among types. These will later be solved via unification.
-    def genConstraints(e: Expr, expected: Type)(implicit env: Map[Identifier, Type]): List[Constraint] = {
-      
+    def genConstraints(e: Expr, expected: Type)(implicit
+        env: Map[Identifier, Type]
+    ): List[Constraint] = {
+
       // This helper returns a list of a single constraint recording the type
       //  that we found (or generated) for the current expression `e`
       def topLevelConstraint(found: Type): List[Constraint] =
         List(Constraint(found, expected, e.position))
-      
+
       e match {
         case IntLiteral(_) =>
           topLevelConstraint(IntType)
-        
+
         case Equals(lhs, rhs) =>
           // HINT: Take care to implement the specified Amy semantics
-          ???  // TODO
-        
+          val lhsAndRhsType = TypeVariable.fresh()
+          val topLevel = topLevelConstraint(BooleanType)
+          val lhsConstraints = genConstraints(lhs, lhsAndRhsType)
+          val rhsConstraints = genConstraints(rhs, lhsAndRhsType)
+          topLevel ++ lhsConstraints ++ rhsConstraints
+
         case Match(scrut, cases) =>
           // Returns additional constraints from within the pattern with all bindings
           // from identifiers to types for names bound in the pattern.
           // (This is analogous to `transformPattern` in NameAnalyzer.)
-          def handlePattern(pat: Pattern, scrutExpected: Type):
-            (List[Constraint], Map[Identifier, Type]) =
-          {
-            ???  // TODO
+          def handlePattern(
+              pat: Pattern,
+              scrutExpected: Type
+          ): (List[Constraint], Map[Identifier, Type]) = {
+            pat match
+              case WildcardPattern() =>
+                (
+                  Nil,
+                  Map.empty
+                )
+              case IdPattern(name) =>
+                (
+                  Nil,
+                  Map((name, scrutExpected))
+                )
+              case LiteralPattern(lit) =>
+                (
+                  genConstraints(lit, scrutExpected),
+                  Map.empty
+                )
+              case CaseClassPattern(qualName, args) =>
+                val constructor = table.getConstructor(qualName).get
+                (
+                  List(
+                    Constraint(
+                      constructor.retType,
+                      scrutExpected,
+                      pat.position
+                    )
+                    // args have right type
+                    // recusrsively pattern match args
+                  ),
+                  Map() // map args
+                )
+
+            // TODO
           }
 
-          def handleCase(cse: MatchCase, scrutExpected: Type): List[Constraint] = {
-            val (patConstraints, moreEnv) = handlePattern(cse.pat, scrutExpected)
-            ???  // TODO
+          def handleCase(
+              cse: MatchCase,
+              scrutExpected: Type
+          ): List[Constraint] = {
+            val (patConstraints, moreEnv) =
+              handlePattern(cse.pat, scrutExpected)
+            ??? // TODO
           }
 
           val st = TypeVariable.fresh()
           genConstraints(scrut, st) ++ cases.flatMap(cse => handleCase(cse, st))
 
         case _ =>
-          ???  // TODO: Implement the remaining cases
+          ??? // TODO: Implement the remaining cases
       }
     }
 
-
     // Given a list of constraints `constraints`, replace every occurence of type variable
     //  with id `from` by type `to`.
-    def subst_*(constraints: List[Constraint], from: Int, to: Type): List[Constraint] = {
+    def subst_*(
+        constraints: List[Constraint],
+        from: Int,
+        to: Type
+    ): List[Constraint] = {
       // Do a single substitution.
       def subst(tpe: Type, from: Int, to: Type): Type = {
         tpe match {
           case TypeVariable(`from`) => to
-          case other => other
+          case other                => other
         }
       }
 
@@ -89,11 +135,11 @@ object TypeChecker extends Pipeline[(Program, SymbolTable), (Program, SymbolTabl
     // We consider a set of constraints to be satisfiable exactly if they unify.
     def solveConstraints(constraints: List[Constraint]): Unit = {
       constraints match {
-        case Nil => ()
+        case Nil                                      => ()
         case Constraint(found, expected, pos) :: more =>
           // HINT: You can use the `subst_*` helper above to replace a type variable
           //       by another type in your current set of constraints.
-          ???  // TODO
+          ??? // TODO
       }
     }
 
@@ -101,7 +147,7 @@ object TypeChecker extends Pipeline[(Program, SymbolTable), (Program, SymbolTabl
     program.modules.foreach { mod =>
       // Put function parameters to the symbol table, then typecheck them against the return type
       mod.defs.collect { case FunDef(_, params, retType, body) =>
-        val env = params.map{ case ParamDef(name, tt) => name -> tt.tpe }.toMap
+        val env = params.map { case ParamDef(name, tt) => name -> tt.tpe }.toMap
         solveConstraints(genConstraints(body, retType.tpe)(env))
       }
 
@@ -111,6 +157,7 @@ object TypeChecker extends Pipeline[(Program, SymbolTable), (Program, SymbolTabl
       mod.optExpr.foreach(e => solveConstraints(genConstraints(e, tv)(Map())))
     }
 
+    // this is really supposed to be here
     v
 
   }
