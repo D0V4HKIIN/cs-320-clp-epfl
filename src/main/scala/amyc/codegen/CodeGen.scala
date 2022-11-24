@@ -116,7 +116,40 @@ object CodeGen extends Pipeline[(Program, SymbolTable), Module] {
         case Neg(e) =>
           Comment(expr.toString) <:> cgExpr(e) <:> Const(-1) <:> Mul
 
-        // case AmyCall(qname, args) => Comment(expr.toString) <:> Code(args.foldLeft(Nil)(l, ))
+        // foldLeft to push all args to the stack
+        // reverse because i prepend in foldLeft but we want the first arg to be the first added to the stack
+        // might be wrong
+        case AmyCall(qname, args) =>
+          Comment(expr.toString) <:>
+            args
+              .foldLeft(List[Code]()) { case (acc, e) => cgExpr(e) :: acc }
+              .reverse <:>
+            Call(qname.name)
+
+        // genereate code for left and right side
+        case Sequence(e1, e2) =>
+          Comment(expr.toString) <:> cgExpr(e1) <:> cgExpr(e2)
+
+        // push value to stack
+        // set fresh local
+        // generate code for the following code with new locals
+        case Let(paramDef, value, body) =>
+          val fresh = lh.getFreshLocal()
+          Comment(expr.toString) <:> cgExpr(value) <:>
+            SetLocal(fresh) <:>
+            cgExpr(body)(locals + (paramDef.name -> fresh), lh)
+
+        // push boolean to stack
+        // if
+        // thenn code
+        // else
+        // elze code
+        // end
+        case Ite(condition, thenn, elze) =>
+          Comment(expr.toString) <:> cgExpr(condition) <:>
+            If_i32 <:> cgExpr(thenn) <:>
+            Else <:> cgExpr(elze) <:>
+            End
 
         case Match(scrut, cases) =>
           // Checks if a value matches a pattern.
@@ -139,10 +172,10 @@ object CodeGen extends Pipeline[(Program, SymbolTable), Module] {
 
               case _ => ???
             }
-
+          println("matches not implemented")
           ???
 
-        case _ => ???
+        case _ => { println(expr.toString + " is not implemented"); ??? }
       }
     }
 
