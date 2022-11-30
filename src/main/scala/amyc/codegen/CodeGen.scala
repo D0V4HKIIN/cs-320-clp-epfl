@@ -136,41 +136,67 @@ object CodeGen extends Pipeline[(Program, SymbolTable), Module] {
         case Let(paramDef, value, body) =>
           val fresh = lh.getFreshLocal()
           Comment(expr.toString) <:> cgExpr(value) <:>
-            SetLocal(fresh) <:>
-            cgExpr(body)(locals + (paramDef.name -> fresh), lh)
+          SetLocal(fresh) <:>
+          cgExpr(body)(locals + (paramDef.name -> fresh), lh)
 
-        // push boolean to stack
+        // push condition boolean to stack
         // if
-        // thenn code
+        // then code
         // else
-        // elze code
+        // else code
         // end
         case Ite(condition, thenn, elze) =>
           Comment(expr.toString) <:> cgExpr(condition) <:>
-            If_i32 <:> cgExpr(thenn) <:>
-            Else <:> cgExpr(elze) <:>
-            End
+          If_i32 <:> cgExpr(thenn) <:>
+          Else <:> cgExpr(elze) <:>
+          End
 
         case Match(scrut, cases) =>
           // Checks if a value matches a pattern.
           // Assumes value is on top of stack (and CONSUMES it)
           // Returns the code to check the value, and a map of bindings.
+
+          // eval scrut
+          // put in a local
+          val scrutLocal = lh.getFreshLocal()
+          cgExpr(scrut) <:> SetLocal(scrutLocal)
+          // needs to be put onto the stack every time matchAndBind is called
+
           def matchAndBind(pat: Pattern): (Code, Map[Identifier, Int]) =
             pat match {
               case IdPattern(id) =>
                 val idLocal = lh.getFreshLocal()
                 (
-                  Comment(pat.toString) <:>
+                    Comment(pat.toString) <:>
                     // Assign val to id.
                     SetLocal(idLocal) <:>
                     // Return true (IdPattern always matches).
                     Const(1),
-                  // Let the code generation of the expression which corresponds to this pattern
-                  // know that the bound id is at local idLocal.
-                  Map(id -> idLocal)
+                    // Let the code generation of the expression which corresponds to this pattern
+                    // know that the bound id is at local idLocal.
+                    Map(id -> idLocal)
                 )
+              
+              // wildcard pattern is always true
+              case WildcardPattern() => (Comment(pat.toString) <:> Const(1),  Map.empty)
 
-              case _ => ???
+              // get scrut and litteral
+              // compare equality
+              case LiteralPattern(l) => (Comment(pat.toString) <:> GetLocal(scrutLocal) <:> cgExpr(l) <:> Eq, Map.empty)
+              
+              // [scrut pointer] stack
+              // load
+              // [scrutid] stack
+              // push pattern case class id to the stack (Const)
+              // [scrutid, patterncaseclassid] stack
+              // Eq
+              // And matchAndBind(args...) (probably be done outside)
+              // map args
+              case CaseClassPattern(constr, args) => 
+                {
+                  val caseClassSignature = table.getConstructor(constr).get
+                  (Comment(pat.toString) <:> Load <:> Const(caseClassSignature.index) <:> Eq <:> And /* <:> "check args"*/, Map.empty)
+                }
             }
           println("matches not implemented")
           ???
