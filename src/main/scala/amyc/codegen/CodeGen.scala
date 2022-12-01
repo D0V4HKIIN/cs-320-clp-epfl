@@ -120,11 +120,31 @@ object CodeGen extends Pipeline[(Program, SymbolTable), Module] {
         // reverse because i prepend in foldLeft but we want the first arg to be the first added to the stack
         // might be wrong
         case AmyCall(qname, args) =>
-          Comment(expr.toString) <:>
-            args
-              .foldLeft(List[Code]()) { case (acc, e) => cgExpr(e) :: acc }
-              .reverse <:>
-            Call(qname.name)
+          
+          (table.getConstructor(qname), table.getFunction(qname)) match {
+            case (None, Some(funSig)) => 
+              Comment(expr.toString) <:>
+              args
+                .foldLeft(List[Code]()) { case (acc, e) => cgExpr(e) :: acc }
+                .reverse <:>
+              Call(qname.fullName)
+            case (Some(conSig), None) => {
+              // get field adt field at index i
+              // put argument on stack
+              // store
+              val argsCode = args.zipWithIndex.foldLeft(Code(List())){ case (acc, (arg, i)) => GetGlobal(memoryBoundary) <:> adtField(i) <:> cgExpr(arg) <:> Store <:> acc}
+              
+              // store constructor id to the memory boundary
+              Comment(expr.toString) <:> GetGlobal(memoryBoundary) <:> Const(conSig.index) <:>  Store <:>
+              // put arguments after the id
+              argsCode <:> 
+              // update memory boundary 4x for alignment. +1 for constructor id
+              GetGlobal(memoryBoundary) <:> Const(4 * (1 + args.length)) <:> Add <:> SetGlobal(memoryBoundary)
+            }
+            case _ => {throw new Exception("bruh dude, dis call ain't good")}
+          }
+        
+          
 
         // genereate code for left and right side
         case Sequence(e1, e2) =>
@@ -195,7 +215,12 @@ object CodeGen extends Pipeline[(Program, SymbolTable), Module] {
               case CaseClassPattern(constr, args) => 
                 {
                   val caseClassSignature = table.getConstructor(constr).get
-                  (Comment(pat.toString) <:> Load <:> Const(caseClassSignature.index) <:> Eq <:> And /* <:> "check args"*/, Map.empty)
+
+                  val (argsCode, argsBind) = args.foldLeft(List[(Code, Map[Identifier, Int])]()).zip((acc, arg) 
+                    => matchAndBind( , arg) :: acc).unzip;
+
+                  Comment(pat.toString) <:> Load <:> Const(caseClassSignature.index) <:> Eq <:>
+                  And <:> argsCode /* <:> "check args"*/, Map.empty // map to change)
                 }
             }
           println("matches not implemented")
