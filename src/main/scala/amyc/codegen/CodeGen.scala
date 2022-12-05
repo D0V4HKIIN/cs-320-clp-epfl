@@ -152,9 +152,9 @@ object CodeGen extends Pipeline[(Program, SymbolTable), Module] {
             case _ => {throw new Exception("bruh dude, dis call ain't good")}
           }
 
-        // genereate code for left and right side
+        // genereate code for left and right side. drop what e1 generated because it is not being consumed
         case Sequence(e1, e2) =>
-          Comment(expr.toString) <:> cgExpr(e1) <:> cgExpr(e2)
+          Comment(expr.toString) <:> cgExpr(e1) <:> Drop <:> cgExpr(e2)
 
         // push value to stack
         // set fresh local
