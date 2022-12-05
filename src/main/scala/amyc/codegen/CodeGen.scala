@@ -123,11 +123,16 @@ object CodeGen extends Pipeline[(Program, SymbolTable), Module] {
           
           (table.getConstructor(qname), table.getFunction(qname)) match {
             case (None, Some(funSig)) => 
-              Comment(expr.toString) <:>
-              args
-                .foldLeft(List[Code]()) { case (acc, e) => cgExpr(e) :: acc }
-                .reverse <:>
-              Call(qname.fullName)
+                  // if(funSig.retType == UnitType) {
+                  //   Comment(expr.toString) <:>
+                  //   args.foldLeft(List[Code]()) { case (acc, e) => cgExpr(e) :: acc }.reverse <:> 
+                  //   Call(fullName(funSig.owner, qname)) <:> Drop
+                  // } else {
+                  Comment(expr.toString) <:>
+                  args.foldLeft(List[Code]()) { case (acc, e) => cgExpr(e) :: acc }.reverse <:> 
+                  Call(fullName(funSig.owner, qname))
+                  // }
+            
             case (Some(conSig), None) => {
               // get field adt field at index i
               // put argument on stack
@@ -135,16 +140,17 @@ object CodeGen extends Pipeline[(Program, SymbolTable), Module] {
               val argsCode = args.zipWithIndex.foldLeft(Code(List())){ case (acc, (arg, i)) => GetGlobal(memoryBoundary) <:> adtField(i) <:> cgExpr(arg) <:> Store <:> acc}
               
               // store constructor id to the memory boundary
-              Comment(expr.toString) <:> GetGlobal(memoryBoundary) <:> Const(conSig.index) <:>  Store <:>
+              Comment(expr.toString) <:> GetGlobal(memoryBoundary) <:> Const(conSig.index) <:> Store <:>
               // put arguments after the id
-              argsCode <:> 
+              argsCode <:>
+              // load the variable that's now at the mem boundary
+              GetGlobal(memoryBoundary) <:>
+              Load <:>
               // update memory boundary 4x for alignment. +1 for constructor id
               GetGlobal(memoryBoundary) <:> Const(4 * (1 + args.length)) <:> Add <:> SetGlobal(memoryBoundary)
             }
             case _ => {throw new Exception("bruh dude, dis call ain't good")}
           }
-        
-          
 
         // genereate code for left and right side
         case Sequence(e1, e2) =>
@@ -188,6 +194,8 @@ object CodeGen extends Pipeline[(Program, SymbolTable), Module] {
                 val idLocal = lh.getFreshLocal()
                 (
                     Comment(pat.toString) <:>
+                    // get scrutlocal because we do it on a per match case, bc wildcard doesn't need it
+                    GetLocal(scrutLocal) <:>
                     // Assign val to id.
                     SetLocal(idLocal) <:>
                     // Return true (IdPattern always matches).
@@ -216,15 +224,27 @@ object CodeGen extends Pipeline[(Program, SymbolTable), Module] {
                 {
                   val caseClassSignature = table.getConstructor(constr).get
 
-                  val (argsCode, argsBind) = args.foldLeft(List[(Code, Map[Identifier, Int])]()).zip((acc, arg) 
-                    => matchAndBind( , arg) :: acc).unzip;
+                  val matchNbinds = args.foldLeft(List[(Code, Map[Identifier, Int])]())((acc, arg) 
+                    => {
+                      val matchNbind = matchAndBind(arg)
+                      (matchNbind._1 <:> And, matchNbind._2) :: acc}
+                    )
 
-                  Comment(pat.toString) <:> Load <:> Const(caseClassSignature.index) <:> Eq <:>
-                  And <:> argsCode /* <:> "check args"*/, Map.empty // map to change)
+                  val argsCode = matchNbinds.map(_._1)
+                  val argsBinds = matchNbinds.map(_._2).flatten.toMap
+                  
+                  (Comment(pat.toString) <:> GetLocal(scrutLocal) <:> Load <:> Const(caseClassSignature.index) <:> Eq <:>
+                   argsCode /* <:> "check args"*/, argsBinds /* map to change*/)
                 }
             }
-          println("matches not implemented")
-          ???
+
+          cases.foldLeft(Code(List()))((acc, caze) => {
+            val matchNbind = matchAndBind(caze.pat)
+            val condition = matchNbind._1
+            val matchBind = matchNbind._2
+            
+            Comment(expr.toString) <:> condition <:> If_i32 <:> cgExpr(caze.expr)(locals ++ matchBind, lh) <:> Else <:> acc 
+          }) <:> Unreachable <:> cases.foldLeft(Code(List()))((acc, _) => acc <:> End)
 
         case _ => { println(expr.toString + " is not implemented"); ??? }
       }
