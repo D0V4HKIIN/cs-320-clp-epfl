@@ -99,10 +99,14 @@ object CodeGen extends Pipeline[(Program, SymbolTable), Module] {
           Comment(expr.toString) <:> cgExpr(e1) <:> cgExpr(e2) <:> Lt_s
         case LessEquals(e1, e2) =>
           Comment(expr.toString) <:> cgExpr(e1) <:> cgExpr(e2) <:> Le_s
+
+        // lh && rh
+        // ==  if(lh) then rh
+        //     else false
         case AmyAnd(e1, e2) =>
-          Comment(expr.toString) <:> cgExpr(e1) <:> cgExpr(e2) <:> And
+          Comment(expr.toString) <:> cgExpr(e1) <:> If_i32 <:> cgExpr(e2) <:> Else <:> Const(0) <:> End
         case AmyOr(e1, e2) =>
-          Comment(expr.toString) <:> cgExpr(e1) <:> cgExpr(e2) <:> Or
+          Comment(expr.toString) <:> cgExpr(e1) <:> If_i32 <:> Const(1) <:> Else <:> cgExpr(e2) <:> End
         case Equals(e1, e2) =>
           Comment(expr.toString) <:> cgExpr(e1) <:> cgExpr(e2) <:> Eq
         // call the string concat function
