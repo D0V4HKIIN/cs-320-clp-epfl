@@ -140,13 +140,15 @@ object CodeGen extends Pipeline[(Program, SymbolTable), Module] {
               val argsCode = args.zipWithIndex.foldLeft(Code(List())){ case (acc, (arg, i)) => GetGlobal(memoryBoundary) <:> adtField(i) <:> cgExpr(arg) <:> Store <:> acc}
               
               // store constructor id to the memory boundary
-              Comment(expr.toString) <:> GetGlobal(memoryBoundary) <:> Const(conSig.index) <:> Store <:>
+              Comment(expr.toString) <:> Comment("store constructor id to the memory boundary") <:> GetGlobal(memoryBoundary) <:> Const(conSig.index) <:> Store <:>
               // put arguments after the id
+              Comment("put arguments after the id") <:>
               argsCode <:>
-              // load the variable that's now at the mem boundary
+              // put the pointer of the class to the stack (memboundary)
+              Comment("put the pointer of the class to the stack (memboundary)") <:>
               GetGlobal(memoryBoundary) <:>
-              Load <:>
               // update memory boundary 4x for alignment. +1 for constructor id
+              Comment("update memboundary") <:>
               GetGlobal(memoryBoundary) <:> Const(4 * (1 + args.length)) <:> Add <:> SetGlobal(memoryBoundary)
             }
             case _ => {throw new Exception("bruh dude, dis call ain't good")}
@@ -154,7 +156,7 @@ object CodeGen extends Pipeline[(Program, SymbolTable), Module] {
 
         // genereate code for left and right side. drop what e1 generated because it is not being consumed
         case Sequence(e1, e2) =>
-          Comment(expr.toString) <:> cgExpr(e1) <:> Drop <:> cgExpr(e2)
+          Comment(e1.toString) <:> cgExpr(e1) <:> Drop <:> Comment(e2.toString) <:> cgExpr(e2)
 
         // push value to stack
         // set fresh local
@@ -185,7 +187,6 @@ object CodeGen extends Pipeline[(Program, SymbolTable), Module] {
           // eval scrut
           // put in a local
           val scrutLocal = lh.getFreshLocal()
-          cgExpr(scrut) <:> SetLocal(scrutLocal)
           // needs to be put onto the stack every time matchAndBind is called
 
           def matchAndBind(pat: Pattern): (Code, Map[Identifier, Int]) =
@@ -238,13 +239,15 @@ object CodeGen extends Pipeline[(Program, SymbolTable), Module] {
                 }
             }
 
-          cases.foldLeft(Code(List()))((acc, caze) => {
+          Comment(expr.toString) <:> cgExpr(scrut) <:> SetLocal(scrutLocal) <:>
+          cases.foldRight(Code(List()))((caze, acc) => {
             val matchNbind = matchAndBind(caze.pat)
             val condition = matchNbind._1
             val matchBind = matchNbind._2
             
-            Comment(expr.toString) <:> condition <:> If_i32 <:> cgExpr(caze.expr)(locals ++ matchBind, lh) <:> Else <:> acc 
-          }) <:> Unreachable <:> cases.foldLeft(Code(List()))((acc, _) => acc <:> End)
+            Comment(caze.toString)
+            condition <:> If_i32 <:> cgExpr(caze.expr)(locals ++ matchBind, lh) <:>
+            Else <:> acc}) <:> Unreachable <:> cases.foldLeft(Code(List()))((acc, _) => acc <:> End)
 
         case _ => { println(expr.toString + " is not implemented"); ??? }
       }
