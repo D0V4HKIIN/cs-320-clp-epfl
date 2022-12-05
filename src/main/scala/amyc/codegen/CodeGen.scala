@@ -144,7 +144,14 @@ object CodeGen extends Pipeline[(Program, SymbolTable), Module] {
               val argsCode = args.zipWithIndex.foldLeft(Code(List())){ case (acc, (arg, i)) => GetGlobal(memoryBoundary) <:> adtField(i) <:> cgExpr(arg) <:> Store <:> acc}
               
               // store constructor id to the memory boundary
-              Comment(expr.toString) <:> Comment("store constructor id to the memory boundary") <:> GetGlobal(memoryBoundary) <:> Const(conSig.index) <:> Store <:>
+              val addr = lh.getFreshLocal()
+
+              Comment(expr.toString) <:> Comment("store constructor id to the memory boundary") <:> 
+              GetGlobal(memoryBoundary) <:> 
+              SetLocal(addr) <:> 
+              GetLocal(addr) <:> 
+              Const(conSig.index) <:> 
+              Store <:>
               // put arguments after the id
               Comment("put arguments after the id") <:>
               argsCode <:>
@@ -197,6 +204,7 @@ object CodeGen extends Pipeline[(Program, SymbolTable), Module] {
             pat match {
               case IdPattern(id) =>
                 val idLocal = lh.getFreshLocal()
+
                 (
                     Comment(pat.toString) <:>
                     // get scrutlocal because we do it on a per match case, bc wildcard doesn't need it
@@ -219,7 +227,7 @@ object CodeGen extends Pipeline[(Program, SymbolTable), Module] {
 
               // get scrut and litteral
               // compare equality
-              case LiteralPattern(l) => (Comment(pat.toString) <:> GetLocal(scrutLocal) <:> cgExpr(l) <:> Eq, Map.empty)
+              case LiteralPattern(l) => (Comment(pat.toString) <:> GetLocal(scrutLocal) <:> adtField(index) <:> cgExpr(l) <:> Eq, Map.empty)
               
               // [scrut pointer] stack
               // load
@@ -232,6 +240,7 @@ object CodeGen extends Pipeline[(Program, SymbolTable), Module] {
               case CaseClassPattern(constr, args) => 
                 {
                   val caseClassSignature = table.getConstructor(constr).get
+                  val scrutId = lh.getFreshLocal()
 
                   val matchNbinds = args.zipWithIndex.foldLeft(List[(Code, Map[Identifier, Int])]()){ case (acc, (arg, index)) 
                     => {
@@ -244,7 +253,7 @@ object CodeGen extends Pipeline[(Program, SymbolTable), Module] {
                   val argsCode = matchNbinds.map(_._1)
                   val argsBinds = matchNbinds.map(_._2).flatten.toMap
                   
-                  (Comment(pat.toString) <:> Comment("get scrut pointer and load it's class id") <:> GetLocal(scrutLocal) <:> Load <:> Comment("class id") <:> Const(caseClassSignature.index) <:> Eq <:>
+                  (Comment(pat.toString) <:> Comment("get scrut pointer and load it's class id") <:> GetLocal(scrutLocal) <:>adtField(index) <:>  Load <:> Comment("class id") <:> Const(caseClassSignature.index) <:> Eq <:>
                    argsCode /* <:> "check args"*/, argsBinds /* map to change*/)
                 }
             }
