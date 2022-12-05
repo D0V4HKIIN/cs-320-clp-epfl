@@ -111,7 +111,7 @@ object CodeGen extends Pipeline[(Program, SymbolTable), Module] {
             cgExpr(e2) <:> Call("String_concat")
 
         // equals zero bc 1 => 0 and 0 => 1
-        case Not(e) => Comment(expr.toString) <:> cgExpr(e) <:> Eqz
+        case Not(e) => Comment(expr.toString) <:> Comment("not") <:> cgExpr(e) <:> Eqz <:> Comment("end of not")
         // multiply by -1
         case Neg(e) =>
           Comment(expr.toString) <:> cgExpr(e) <:> Const(-1) <:> Mul
@@ -189,15 +189,19 @@ object CodeGen extends Pipeline[(Program, SymbolTable), Module] {
           val scrutLocal = lh.getFreshLocal()
           // needs to be put onto the stack every time matchAndBind is called
 
-          def matchAndBind(pat: Pattern): (Code, Map[Identifier, Int]) =
+          def matchAndBind(pat: Pattern, index: Int = 0): (Code, Map[Identifier, Int]) =
             pat match {
               case IdPattern(id) =>
                 val idLocal = lh.getFreshLocal()
                 (
                     Comment(pat.toString) <:>
                     // get scrutlocal because we do it on a per match case, bc wildcard doesn't need it
-                    GetLocal(scrutLocal) <:>
+                    Comment("get scrut") <:>
+                    GetLocal(scrutLocal) <:> // pointer
+                    adtField(index) <:> // + field that is being used in the case class pattern
+                    Load <:>
                     // Assign val to id.
+                    Comment("set idLocal") <:>
                     SetLocal(idLocal) <:>
                     // Return true (IdPattern always matches).
                     Const(1),
@@ -225,21 +229,23 @@ object CodeGen extends Pipeline[(Program, SymbolTable), Module] {
                 {
                   val caseClassSignature = table.getConstructor(constr).get
 
-                  val matchNbinds = args.foldLeft(List[(Code, Map[Identifier, Int])]())((acc, arg) 
+                  val matchNbinds = args.zipWithIndex.foldLeft(List[(Code, Map[Identifier, Int])]()){ case (acc, (arg, index)) 
                     => {
-                      val matchNbind = matchAndBind(arg)
-                      (matchNbind._1 <:> And, matchNbind._2) :: acc}
-                    )
+                      val matchNbind = matchAndBind(arg, index=index) // scrut == case class // scrut == scrut case class arg
+                      
+                      (matchNbind._1 <:> And, matchNbind._2) :: acc
+                    }
+                  }
 
                   val argsCode = matchNbinds.map(_._1)
                   val argsBinds = matchNbinds.map(_._2).flatten.toMap
                   
-                  (Comment(pat.toString) <:> GetLocal(scrutLocal) <:> Load <:> Const(caseClassSignature.index) <:> Eq <:>
+                  (Comment(pat.toString) <:> Comment("get scrut pointer and load it's class id") <:> GetLocal(scrutLocal) <:> Load <:> Comment("class id") <:> Const(caseClassSignature.index) <:> Eq <:>
                    argsCode /* <:> "check args"*/, argsBinds /* map to change*/)
                 }
             }
 
-          Comment(expr.toString) <:> cgExpr(scrut) <:> SetLocal(scrutLocal) <:>
+          Comment(expr.toString) <:> Comment("cg for scrut") <:> cgExpr(scrut) <:> SetLocal(scrutLocal) <:> Comment("finished code for scrut") <:>
           cases.foldRight(Code(List()))((caze, acc) => {
             val matchNbind = matchAndBind(caze.pat)
             val condition = matchNbind._1
@@ -249,6 +255,7 @@ object CodeGen extends Pipeline[(Program, SymbolTable), Module] {
             condition <:> If_i32 <:> cgExpr(caze.expr)(locals ++ matchBind, lh) <:>
             Else <:> acc}) <:> Unreachable <:> cases.foldLeft(Code(List()))((acc, _) => acc <:> End)
 
+        case Error(msg) => Comment(expr.toString) <:> cgExpr(msg) <:> Call("Std_printString") <:> Unreachable
         case _ => { println(expr.toString + " is not implemented"); ??? }
       }
     }
