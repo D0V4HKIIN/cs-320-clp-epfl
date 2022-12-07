@@ -229,9 +229,8 @@ object CodeGen extends Pipeline[(Program, SymbolTable), Module] {
               
               // wildcard pattern is always true
               // drop assumed scrut on stack
-              case WildcardPattern() => (Comment(pat.toString) <:>
-              Drop <:>
-              Const(1),  Map.empty)
+              case WildcardPattern() => (Comment(pat.toString) <:> Drop <:>
+              Const(1),  Map.empty) // vs locals
 
               // get litteral
               // compare equality
