@@ -141,23 +141,26 @@ object CodeGen extends Pipeline[(Program, SymbolTable), Module] {
               // get field adt field at index i
               // put argument on stack
               // store
-              val argsCode = args.zipWithIndex.foldRight(Code(List())){ case ( (arg, i), acc) => Comment(arg.toString) <:>
+
+              val addr = lh.getFreshLocal()
+              
+              val argsCode = args.zipWithIndex.foldRight(Code(List())){ case ( (arg, i), acc) => 
+                Comment(arg.toString) <:>
                 Comment("get field for argument") <:>
-                GetGlobal(memoryBoundary) <:> adtField(i) <:>
+                GetLocal(addr) <:> adtField(i) <:>
                 Comment("eval argument: " + arg.toString) <:>
                 cgExpr(arg) <:> Store <:>
-                Comment("update memboundary (constr)") <:>
-                GetGlobal(memoryBoundary) <:> Const(4) <:>
-                Add <:> SetGlobal(memoryBoundary) <:>
                 acc
               }
               
-              val addr = lh.getFreshLocal()
-
               // store constructor id to the memory boundary
-              Comment(expr.toString) <:> Comment("store constructor id to the memory boundary and save the addr") <:> 
+              Comment(expr.toString) <:> Comment("save memory boundary as this is the pointer to the class") <:> 
               GetGlobal(memoryBoundary) <:> 
               SetLocal(addr) <:> 
+              // update memory boundary 4x for alignment. +1 for constructor id
+              Comment("update memboundary (constr)") <:>
+              GetGlobal(memoryBoundary) <:> Const(4 * (1 + args.length)) <:> Add <:> SetGlobal(memoryBoundary) <:>
+              Comment("put constructor id at the address") <:>
               GetLocal(addr) <:> 
               Const(conSig.index) <:> 
               Store <:>
@@ -166,10 +169,7 @@ object CodeGen extends Pipeline[(Program, SymbolTable), Module] {
               argsCode <:>
               // put the pointer of the class to the stack (addr)
               Comment("put the pointer of the class to the stack (addr)") <:>
-              GetLocal(addr) <:>
-              // update memory boundary 4x for alignment. +1 for constructor id
-              Comment("update memboundary (constr)") <:>
-              GetGlobal(memoryBoundary) <:> Const(4) <:> Add <:> SetGlobal(memoryBoundary)
+              GetLocal(addr)
             }
             case _ => {throw new Exception("bruh dude, dis call ain't good")}
           }
@@ -209,7 +209,7 @@ object CodeGen extends Pipeline[(Program, SymbolTable), Module] {
           val scrutLocal = lh.getFreshLocal()
           // needs to be put onto the stack every time matchAndBind is called
 
-          def matchAndBind(pat: Pattern, index: Int = -1): (Code, Map[Identifier, Int]) =
+          def matchAndBind(pat: Pattern): (Code, Map[Identifier, Int]) =
             pat match {
               case IdPattern(id) =>
                 val idLocal = lh.getFreshLocal()
@@ -249,23 +249,27 @@ object CodeGen extends Pipeline[(Program, SymbolTable), Module] {
               case CaseClassPattern(constr, args) => 
                 {
                   val caseClassSignature = table.getConstructor(constr).get
-                  val scrutId = lh.getFreshLocal()
 
-                  val matchNbinds = args.zipWithIndex.foldLeft(List[(Code, Map[Identifier, Int])]()){ case (acc, (arg, index)) 
+                  val matchNbinds = args.zipWithIndex.foldLeft((Code(List()), Map[Identifier, Int]())){ case ((codeAcc, bindAcc), (arg, index)) 
                     => {
                       // TODO put arg on stack and call matchAndBind so that it assumes it is the scrut with right index
-                      val matchNbind = matchAndBind(arg, index=index) // scrut == case class // scrut == scrut case class arg
-                      
+                      val matchNbind = matchAndBind(arg) // scrut == case class // scrut == scrut case class arg
+
                       (Comment("put arg on stack instead of scrut") <:> GetLocal(scrutLocal) <:>
-                  Comment("index is: " + index) <:> 
-                  adtField(index) <:> Load <:> matchNbind._1 <:> And, matchNbind._2) :: acc
-                    }
+                      Comment("index is: " + index) <:> 
+                      adtField(index) <:> Load <:> matchNbind._1 <:>
+                      codeAcc <:>
+                      And,
+                      matchNbind._2 ++ bindAcc)
+    
+                     }
                   }
 
-                  val argsCode = matchNbinds.map(_._1)
-                  val argsBinds = matchNbinds.map(_._2).flatten.toMap
+                  val argsCode = matchNbinds._1
+                  val argsBinds = matchNbinds._2
                   
-                  (Comment(pat.toString) <:> Comment("load it's class id") <:>
+                  (Comment(pat.toString) <:> Comment("load the scruts class id") <:>
+                  Load <:>
                   Comment("class id") <:>
                   Const(caseClassSignature.index) <:> Eq <:>
                   argsCode /* <:> "check args"*/, argsBinds)
@@ -283,7 +287,7 @@ object CodeGen extends Pipeline[(Program, SymbolTable), Module] {
             Comment(caze.toString) <:>
             GetLocal(scrutLocal) <:> condition <:>
             If_i32 <:> cgExpr(caze.expr)(locals ++ matchBind, lh) <:>
-            Else <:> acc}) <:> Unreachable <:>
+            Else <:> acc}) <:> cgExpr(Error(StringLiteral("didn't match any cases"))) <:> Unreachable <:>
             cases.foldLeft(Code(List()))((acc, _) => acc <:> End)
 
         case Error(msg) => Comment(expr.toString) <:> cgExpr(msg) <:> Call("Std_printString") <:> Unreachable
