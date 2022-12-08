@@ -248,6 +248,7 @@ object CodeGen extends Pipeline[(Program, SymbolTable), Module] {
               // map args
               case CaseClassPattern(constr, args) => 
                 {
+                  val constrLocal = lh.getFreshLocal()
                   val caseClassSignature = table.getConstructor(constr).get
 
                   val matchNbinds = args.zipWithIndex.foldLeft((Code(List()), Map[Identifier, Int]())){ case ((codeAcc, bindAcc), (arg, index)) 
@@ -255,10 +256,10 @@ object CodeGen extends Pipeline[(Program, SymbolTable), Module] {
                       // TODO put arg on stack and call matchAndBind so that it assumes it is the scrut with right index
                       val matchNbind = matchAndBind(arg) // scrut == case class // scrut == scrut case class arg
 
-                      (Comment("put arg on stack instead of scrut") <:> GetLocal(scrutLocal) <:>
-                      Comment("index is: " + index) <:> 
+                      (codeAcc <:>
+                      Comment("put arg on stack instead of scrut") <:> GetLocal(constrLocal) <:> // this is wrong when having deeply case class matches bc it's the top level scrut and not the inner scrut
+                      Comment("index is: " + index + " for scrut " + scrut) <:> 
                       adtField(index) <:> Load <:> matchNbind._1 <:>
-                      codeAcc <:>
                       And,
                       matchNbind._2 ++ bindAcc)
     
@@ -267,8 +268,11 @@ object CodeGen extends Pipeline[(Program, SymbolTable), Module] {
 
                   val argsCode = matchNbinds._1
                   val argsBinds = matchNbinds._2
+
+                  // println(argsCode);
                   
                   (Comment(pat.toString) <:> Comment("load the scruts class id") <:>
+                  SetLocal(constrLocal) <:> GetLocal(constrLocal) <:>
                   Load <:>
                   Comment("class id") <:>
                   Const(caseClassSignature.index) <:> Eq <:>
