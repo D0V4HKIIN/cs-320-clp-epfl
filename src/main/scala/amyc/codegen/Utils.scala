@@ -2,8 +2,8 @@ package amyc
 package codegen
 
 import amyc.ast.Identifier
-import wasm.Function
-import wasm.Instructions._
+import c.Function
+import c.Instructions._
 
 // Utilities for CodeGen
 object Utils {

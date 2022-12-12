@@ -1,5 +1,5 @@
 package amyc
-package wasm_old
+package c
 
 // A WebAssembly module
 case class Module(name: String, imports: List[String], globals: Int, functions: List[Function]) {

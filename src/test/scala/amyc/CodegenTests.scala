@@ -3,7 +3,7 @@ package amyc
 import parsing._
 import analyzer.{NameAnalyzer, TypeChecker}
 import codegen._
-import wasm.Module
+import c.Module
 import amyc.utils._
 import scala.sys.process._
 import scala.collection.JavaConverters._

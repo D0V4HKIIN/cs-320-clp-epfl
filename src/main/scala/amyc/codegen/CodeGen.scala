@@ -11,7 +11,7 @@ import amyc.ast.SymbolicTreeModule.{
   _
 }
 import amyc.utils.{Context, Pipeline}
-import wasm._
+import c._
 import Instructions._
 import Utils._
 

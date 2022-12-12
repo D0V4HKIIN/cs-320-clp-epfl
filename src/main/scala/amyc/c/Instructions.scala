@@ -1,5 +1,5 @@
 package amyc
-package wasm_old
+package c
 
 import scala.language.implicitConversions
 

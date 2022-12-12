@@ -1,9 +1,9 @@
 package amyc
-package wasm_old
+package c
 
 import scala.language.implicitConversions
 import amyc.utils._
-import Instructions._
+import c.Instructions._
 
 // Printer for Wasm modules
 object ModulePrinter {

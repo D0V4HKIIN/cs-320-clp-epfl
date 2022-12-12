@@ -1,6 +1,6 @@
 package amyc
-package wasm_old
-import Instructions.Code
+package c
+import c.Instructions.Code
 
 // If isMain = false, represents a function which returns an i32 and will not be exported to js
 // If isMain = true , represents a function which does not return a value, and will be exported to js
@@ -14,7 +14,7 @@ class LocalsHandler(args: Int) {
     locals_ += 1
     args + locals_ - 1
   }
-  private[wasm_old] def locals = locals_
+  private[c] def locals = locals_
 }
 
 object Function {

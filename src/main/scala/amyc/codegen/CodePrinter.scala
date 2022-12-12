@@ -1,7 +1,7 @@
 package amyc
 package codegen
 
-import wasm.Module
+import c.Module
 import amyc.utils.{Context, Pipeline, Env}
 import scala.sys.process._
 import java.io._
@@ -9,7 +9,7 @@ import java.io._
 // Prints all 4 different files from a wasm Module
 object CodePrinter extends Pipeline[Module, Unit]{
   def run(ctx: Context)(m: Module) = {
-    val outDirName = "wasmout"
+    val outDirName = "cout"
 
     def pathWithExt(ext: String) = s"$outDirName/${nameWithExt(ext)}"
     def nameWithExt(ext: String) = s"${m.name}.$ext"
