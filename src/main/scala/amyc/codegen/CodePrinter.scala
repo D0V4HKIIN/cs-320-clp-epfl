@@ -17,40 +17,42 @@ object CodePrinter extends Pipeline[Module, Unit]{
     val (local, inPath) = {
       import Env._
       os match {
-        case Linux   => ("./bin/wat2wasm",     "wat2wasm")
-        case Windows => ("./bin/wat2wasm.exe", "wat2wasm.exe")
-        case Mac     => ("./bin/wat2wasm",     "wat2wasm")
+        case Linux   => ("./bin/gcc",     "gcc")
+        // case Windows => ("./bin/wat2wasm.exe", "wat2wasm.exe")
+        // case Mac     => ("./bin/wat2wasm",     "wat2wasm")
       }
     }
 
-    val w2wOptions = s"${pathWithExt("wat")} -o ${pathWithExt("wasm")}"
+    val gccOptions = s"${pathWithExt("c")} -o ${pathWithExt("o")}"
 
     val outDir = new File(outDirName)
     if (!outDir.exists()) {
       outDir.mkdir()
     }
 
-    m.writeWasmText(pathWithExt("wat"))
+    m.writeWasmText(pathWithExt("c"))
 
     try {
+      // first try compiling with local
       try {
-        s"$local $w2wOptions".!!
+        s"$local $gccOptions".!!
       } catch {
+        // if exception (file not found) then compile using gcc in path
         case _: IOException =>
-          s"$inPath $w2wOptions".!!
+          s"$inPath $gccOptions".!!
       }
     } catch {
       case _: IOException =>
         ctx.reporter.fatal(
-          "wat2wasm utility was not found under ./bin or in system path, " +
+          "gcc utility was not found under ./bin or in system path, " +
           "or did not have permission to execute. Make sure it is either in the system path, or in <root of the project>/bin"
         )
       case _: RuntimeException =>
-        ctx.reporter.fatal(s"wat2wasm failed to translate WebAssembly text file ${pathWithExt("wat")} to binary")
+        ctx.reporter.fatal(s"gcc failed to translate c text file ${pathWithExt("c")} to binary")
     }
 
-    m.writeHtmlWrapper(pathWithExt("html"), nameWithExt("wasm")) // Web version needs path relative to .html
-    m.writeNodejsWrapper(pathWithExt("js"), pathWithExt("wasm")) // Node version needs path relative to project root
+    // m.writeHtmlWrapper(pathWithExt("html"), nameWithExt("wasm")) // Web version needs path relative to .html
+    // m.writeNodejsWrapper(pathWithExt("js"), pathWithExt("wasm")) // Node version needs path relative to project root
 
   }
 }
