@@ -30,7 +30,7 @@ object CodePrinter extends Pipeline[Module, Unit]{
       outDir.mkdir()
     }
 
-    m.writeWasmText(pathWithExt("c"))
+    m.writeCText(pathWithExt("c"))
 
     try {
       // first try compiling with local
@@ -51,6 +51,7 @@ object CodePrinter extends Pipeline[Module, Unit]{
         ctx.reporter.fatal(s"gcc failed to translate c text file ${pathWithExt("c")} to binary")
     }
 
+    // not needed for c backend
     // m.writeHtmlWrapper(pathWithExt("html"), nameWithExt("wasm")) // Web version needs path relative to .html
     // m.writeNodejsWrapper(pathWithExt("js"), pathWithExt("wasm")) // Node version needs path relative to project root
 
