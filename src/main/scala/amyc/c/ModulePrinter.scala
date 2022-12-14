@@ -76,14 +76,16 @@ object ModulePrinter {
             List(
               Raw(s"int locals[${fh.args + fh.locals}] = {"),
               Raw(
-                (for i <- 0 until fh.args
-                yield "pop").mkString(", ") + (if fh.args == 0 then "" else ", ")
+                (for i <- (1 to fh.args).reverse
+                yield s"peek ($i)").mkString(", ") + (if fh.args == 0 then "" else ", ")
               ),
               Raw(
-                (for i <- 0 until fh.locals
+                (for i <- 1 to fh.locals
                 yield "0").mkString(", ")
               ),
-              Raw("};")
+              Raw("};"),
+              Raw((for i <- 1 to fh.args
+                yield "drop").mkString(";") + ";")
             )
           )
         ),
