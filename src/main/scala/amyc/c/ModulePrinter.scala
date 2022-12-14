@@ -141,8 +141,8 @@ object ModulePrinter {
       case SetGlobal(index) => s"setGlobal($index);"
       case Store => "store;"
       case Load => "load;"
-      case Store8 => "store; // store8"  //"i32.store8"
-      case Load8_u => "load; // load8_u" //"i32.load8_u"
+      case Store8 => "store8; // store8"  //"i32.store8"
+      case Load8_u => "load8; // load8_u" //"i32.load8_u"
       case Comment(s) =>
         var first = true;
         Stacked(s.split('\n').toList.map(s =>
