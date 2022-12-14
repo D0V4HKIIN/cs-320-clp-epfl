@@ -4,6 +4,8 @@ object Factorial
     else { i * fact(i-1) }
   }
 
-  fact(5)
-  // Std.printString("10! = " ++ Std.intToString(fact(10)))
+  //fact(5)
+  Std.printString("10! = " ++ Std.intToString(fact(10)));
+  Std.printString("try racecar");
+  Std.printString("alex" ++ "jonas")
 end Factorial
