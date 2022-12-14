@@ -113,7 +113,7 @@ object ModulePrinter {
       case Add => "push (pop + pop);"
       case Sub => "a = pop; push (pop - a);" // first value is the one we substract
       case Mul => "push (pop * pop);"
-      case Div => "a = pop; push (pop * a);" // first value is the one we divide by
+      case Div => "a = pop; push (pop / a);" // first value is the one we divide by
       case Rem => "a = pop; push (pop % a);" // first value is the one we mod by
       case And => "push (pop && pop);"
       case Or  => "push (pop || pop);"
@@ -125,7 +125,7 @@ object ModulePrinter {
       case If_void => "if (pop){"
       case If_i32 => "if (pop){"
       case Else => "} else {"
-      case Block(label) => s"exit(1); //FUCK BLOCK { // is a block is brokey"
+      case Block(label) => s"exit(2); //FUCK BLOCK { // is a block is brokey"
       case Loop(label) => s"$label: {"
       case Br(label)=> s"goto $label;"
       case Return => "return;"
