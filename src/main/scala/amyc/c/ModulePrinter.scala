@@ -25,13 +25,16 @@ object ModulePrinter {
     "#define getLocal(i) push locals[i]",
     "#define setLocal(i) locals[i] = pop",
     "#define store memory[stack[stack_pointer - 2]] = stack[stack_pointer - 1]; stack_pointer -= 2",
-    "#define load push memory[pop]",
+    "#define store8 memory[stack[stack_pointer - 2]] = stack[stack_pointer - 1] & 0x000000ffUL; stack_pointer -= 2",
+    "#define load push *((int*)memory[pop])",
+    "#define load8 push *((char*)memory[pop])",
+
 
     "#define MAX_STACK_SIZE 10000",
     "int stack[MAX_STACK_SIZE];",
     "int stack_pointer = 0;",
     "int globals[MAX_STACK_SIZE];",
-    "int memory[MAX_STACK_SIZE];\n",
+    "char memory[MAX_STACK_SIZE];\n",
 
     Stacked(mod.functions map decFun),
     Lined(List()), // newline
