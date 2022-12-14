@@ -26,7 +26,7 @@ object ModulePrinter {
     "#define setLocal(i) locals[i] = pop",
     "#define store memory[stack[stack_pointer - 2]] = stack[stack_pointer - 1]; stack_pointer -= 2",
     "#define store8 memory[stack[stack_pointer - 2]] = stack[stack_pointer - 1] & 0x000000ffUL; stack_pointer -= 2",
-    "#define load push *((int*)memory[pop])",
+    "#define load push memory[pop]",
     "#define load8 push *((char*)memory[pop])",
 
 
@@ -141,8 +141,8 @@ object ModulePrinter {
       case SetGlobal(index) => s"setGlobal($index);"
       case Store => "store;"
       case Load => "load;"
-      case Store8 => "store8; // store8"  //"i32.store8"
-      case Load8_u => "load8; // load8_u" //"i32.load8_u"
+      case Store8 => "store; // store8"  //"i32.store8"
+      case Load8_u => "load; // load8_u" //"i32.load8_u"
       case Comment(s) =>
         var first = true;
         Stacked(s.split('\n').toList.map(s =>
