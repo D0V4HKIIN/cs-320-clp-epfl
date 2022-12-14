@@ -15,11 +15,19 @@ object Utils {
 
   // The default imports we will pass to a wasm Module
   val defaultImports: List[String] = List(
-    "\"system\" \"printInt\" (func $Std_printInt (param i32) (result i32))",
-    "\"system\" \"printString\" (func $Std_printString (param i32) (result i32))",
-    "\"system\" \"readString0\" (func $js_readString0 (param i32) (result i32))",
-    "\"system\" \"readInt\" (func $Std_readInt (result i32))",
-    "\"system\" \"mem\" (memory 100)"
+    // "\"system\" \"printInt\" (func $Std_printInt (param i32) (result i32))",
+    // "\"system\" \"printString\" (func $Std_printString (param i32) (result i32))",
+    // "\"system\" \"readString0\" (func $js_readString0 (param i32) (result i32))",
+    // "\"system\" \"readInt\" (func $Std_readInt (result i32))",
+    // "\"system\" \"mem\" (memory 100)"
+    "void Std_printInt(){\n\tprintf(\"%d\\n\", pop);\n\tcnst 0;\n}",
+    "void Std_printString(){\n\tprintf(\"printing string\\n\");\n}",
+    "void Std_readString(){\n\tprintf(\"reading string\\n\");\n}",
+    "void Std_readInt(){\n\tprintf(\"reading int\\n\");\n}",
+    "void Std_mem(){\n\tprintf(\"init memory\\n\");\n}",
+    "void print_state(){\n\tfor(int i = 0; i < stack_pointer; i++){\n\t\tprintf(\"%i, \", stack[i]);\n\t}\n\tprintf(\"\\n\");\n}",
+    "void print_stackpointer(){\n\tprintf(\"%i\\n\", stack_pointer);\n}"
+
   )
 
   // We don't generate code for these functions in CodeGen (they are hard-coded here or in js wrapper)
@@ -153,6 +161,6 @@ object Utils {
     }
   }
 
-  val wasmFunctions = List(concatImpl, digitToStringImpl, readStringImpl)
+  val wasmFunctions = List(concatImpl, digitToStringImpl)
 
 }

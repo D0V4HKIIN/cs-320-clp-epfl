@@ -14,19 +14,41 @@ object ModulePrinter {
     // Indented("(global (mut i32) i32.const 0) " * mod.globals),
     // ")"
     "#include <stdio.h>",
+    "int a;",
     "#define push stack[stack_pointer++] = ",
     "#define pop stack[--stack_pointer]",
+    "#define peek(i) stack[stack_pointer - i]",
     "#define cnst push ",
-    "#define MAX_STACK_SIZE 10000",
+    "#define drop stack_pointer--",
+    "#define getGlobal(i) push globals[i]",
+    "#define setGlobal(i) globals[i] = pop",
+    "#define getLocal(i) push locals[i]",
+    "#define setLocal(i) locals[i] = pop",
+    "#define store memory[stack[stack_pointer - 2]] = stack[stack_pointer - 1]; stack_pointer -= 2",
+    "#define load push memory[pop]",
 
+    "#define MAX_STACK_SIZE 10000",
+    "int stack[MAX_STACK_SIZE];",
+    "int stack_pointer = 0;",
+    "int globals[MAX_STACK_SIZE];",
+    "int memory[MAX_STACK_SIZE];\n",
+
+    Stacked(mod.functions map decFun),
+    Lined(List()), // newline
     Stacked(mod.imports map mkImport),
     Stacked(mod.functions map mkFun)
 
   )
 
-  private def mkImport(s: String): Document =
-    Lined(List("(import ", s, ")"))
+  private def mkImport(s: String): Document = {
+    // Lined(List("(import ", s, ")"))
+    Lined(List(s))
+  }
 
+  private def decFun(fh: Function): Document = {
+     Lined(List(Raw("void"), s" ${fh.name}();"))
+  }
+    
   private def mkFun(fh: Function): Document = {
     val isMain = fh.isMain
     val name = if isMain then "main" else fh.name
@@ -37,7 +59,7 @@ object ModulePrinter {
     //     Lined(fh.params.map(p => {println("int" + p); Raw("int") <:> p}), ", "),
     //   ))
     // }
-    val resultDoc: Document = Raw("int")
+    val resultDoc: Document = Raw("void")
     // val localsDoc: Document =
     //   if (fh.locals > 0)
     //     "(local " <:> Lined(List.fill(fh.locals)(Raw("i32")), " ") <:> ")"
@@ -45,7 +67,23 @@ object ModulePrinter {
     //     ""
 
     Stacked(
-      Lined(List(resultDoc, s" $$${fh.name}() {")),
+      Lined(List(resultDoc, s" ${name}() {")),
+        Indented(
+          Lined(
+            List(
+              Raw(s"int locals[${fh.args + fh.locals}] = {"),
+              Raw(
+                (for i <- 0 until fh.args
+                yield "pop").mkString(", ") + (if fh.args == 0 then "" else ", ")
+              ),
+              Raw(
+                (for i <- 0 until fh.locals
+                yield "0").mkString(", ")
+              ),
+              Raw("};")
+            )
+          )
+        ),
         Indented(Stacked(mkCode(fh.code))),
       "}"
     )
@@ -71,37 +109,37 @@ object ModulePrinter {
 
   private def mkInstr(instr: Instruction): Document = {
     instr match {
-      case Const(value) => s"i32.const $value"
-      case Add => "i32.add"
-      case Sub => "i32.sub"
-      case Mul => "i32.mul"
-      case Div => "i32.div_s"
-      case Rem => "i32.rem_s"
-      case And => "i32.and"
-      case Or  => "i32.or"
-      case Eqz => "i32.eqz"
-      case Lt_s => "i32.lt_s"
-      case Le_s => "i32.le_s"
-      case Eq => "i32.eq"
-      case Drop => "drop"
-      case If_void => "if"
-      case If_i32 => "if (result i32)"
-      case Else => "else"
-      case Block(label) => s"block $$$label"
-      case Loop(label) => s"loop $$$label"
-      case Br(label)=> s"br $$$label"
-      case Return => "ret"
-      case End => "end"
-      case Call(name) => s"call $$$name"
-      case Unreachable => "unreachable"
-      case GetLocal(index) => s"local.get $index"
-      case SetLocal(index) => s"local.set $index"
-      case GetGlobal(index) => s"global.get $index"
-      case SetGlobal(index) => s"global.set $index"
-      case Store => "i32.store"
-      case Load => "i32.load"
-      case Store8 => "i32.store8"
-      case Load8_u => "i32.load8_u"
+      case Const(value) => s"cnst $value;"
+      case Add => "push (pop + pop);"
+      case Sub => "a = pop; push (pop - a);" // first value is the one we substract
+      case Mul => "push (pop * pop);"
+      case Div => "a = pop; push (pop * a);" // first value is the one we divide by
+      case Rem => "a = pop; push (pop % a);" // first value is the one we mod by
+      case And => "push (pop && pop);"
+      case Or  => "push (pop || pop);"
+      case Eqz => "push (pop == 0);"
+      case Lt_s => "a = pop; push (pop < a);" // inverse
+      case Le_s => "a = pop; push (pop <= a);" // inverse
+      case Eq => "push (pop == pop);"
+      case Drop => "drop;"
+      case If_void => "if (pop){"
+      case If_i32 => "if (pop){"
+      case Else => "} else {"
+      case Block(label) => s"exit(1); //FUCK BLOCK { // is a block is brokey"
+      case Loop(label) => s"$label: {"
+      case Br(label)=> s"goto $label;"
+      case Return => "return;"
+      case End => "}"
+      case Call(name) => s"$name();"
+      case Unreachable => "exit(1);"
+      case GetLocal(index) => s"getLocal($index);"
+      case SetLocal(index) => s"setLocal($index);"
+      case GetGlobal(index) => s"getGlobal($index);"
+      case SetGlobal(index) => s"setGlobal($index);"
+      case Store => "store;"
+      case Load => "load;"
+      case Store8 => "store; // store8"  //"i32.store8"
+      case Load8_u => "load; // load8_u" //"i32.load8_u"
       case Comment(s) =>
         var first = true;
         Stacked(s.split('\n').toList.map(s =>
