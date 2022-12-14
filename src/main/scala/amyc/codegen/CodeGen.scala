@@ -156,10 +156,11 @@ object CodeGen extends Pipeline[(Program, SymbolTable), Module] {
               // store constructor id to the memory boundary
               Comment(expr.toString) <:> Comment("save memory boundary as this is the pointer to the class") <:> 
               GetGlobal(memoryBoundary) <:> 
-              SetLocal(addr) <:> 
+              SetLocal(addr) <:> // addr = memoryBoundary
               // update memory boundary 4x for alignment. +1 for constructor id
               Comment("update memboundary (constr)") <:>
               GetGlobal(memoryBoundary) <:> Const(4 * (1 + args.length)) <:> Add <:> SetGlobal(memoryBoundary) <:>
+              // sets constructor id
               Comment("put constructor id at the address") <:>
               GetLocal(addr) <:> 
               Const(conSig.index) <:> 
@@ -253,7 +254,6 @@ object CodeGen extends Pipeline[(Program, SymbolTable), Module] {
 
                   val matchNbinds = args.zipWithIndex.foldLeft((Code(List()), Map[Identifier, Int]())){ case ((codeAcc, bindAcc), (arg, index)) 
                     => {
-                      // TODO put arg on stack and call matchAndBind so that it assumes it is the scrut with right index
                       val matchNbind = matchAndBind(arg) // scrut == case class // scrut == scrut case class arg
 
                       (codeAcc <:>
@@ -265,6 +265,8 @@ object CodeGen extends Pipeline[(Program, SymbolTable), Module] {
     
                      }
                   }
+
+                  // Cons(1, Cons(2, Nil))
 
                   val argsCode = matchNbinds._1
                   val argsBinds = matchNbinds._2

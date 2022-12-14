@@ -10,39 +10,44 @@ object ModulePrinter {
   private implicit def s2d(s: String): Raw = Raw(s)
 
   private def mkMod(mod: Module): Document = Stacked(
-    "(module ",
-    Indented(Stacked(mod.imports map mkImport)),
-    Indented("(global (mut i32) i32.const 0) " * mod.globals),
-    Indented(Stacked(mod.functions map mkFun)),
-    ")"
+    // "(module ",
+    // Indented("(global (mut i32) i32.const 0) " * mod.globals),
+    // ")"
+    "#include <stdio.h>",
+    "#define push stack[stack_pointer++] = ",
+    "#define pop stack[--stack_pointer]",
+    "#define cnst push ",
+    "#define MAX_STACK_SIZE 10000",
+
+    Stacked(mod.imports map mkImport),
+    Stacked(mod.functions map mkFun)
+
   )
 
   private def mkImport(s: String): Document =
     Lined(List("(import ", s, ")"))
 
   private def mkFun(fh: Function): Document = {
-    val name = fh.name
     val isMain = fh.isMain
-    val exportDoc: Document = if (isMain) s"""(export "$name" (func $$$name))""" else ""
-    val paramsDoc: Document = if (fh.args == 0) "" else {
-      Lined(List(
-        "(param ",
-        Lined(List.fill(fh.args)(Raw("i32")), " "),
-        ") "
-      ))
-    }
-    val resultDoc: Document = if (isMain) "" else "(result i32) "
-    val localsDoc: Document =
-      if (fh.locals > 0)
-        "(local " <:> Lined(List.fill(fh.locals)(Raw("i32")), " ") <:> ")"
-      else
-        ""
+    val name = if isMain then "main" else fh.name
+    
+    // val exportDoc: Document = if (isMain) s"""(export "$name" (func $$$name))""" else ""
+    // val paramsDoc: Document = if (fh.args == 0) "" else {
+    //   Lined(List(
+    //     Lined(fh.params.map(p => {println("int" + p); Raw("int") <:> p}), ", "),
+    //   ))
+    // }
+    val resultDoc: Document = Raw("int")
+    // val localsDoc: Document =
+    //   if (fh.locals > 0)
+    //     "(local " <:> Lined(List.fill(fh.locals)(Raw("i32")), " ") <:> ")"
+    //   else
+    //     ""
 
     Stacked(
-      exportDoc,
-      Lined(List(s"(func $$${fh.name} ", paramsDoc, resultDoc, localsDoc)),
-      Indented(Stacked(mkCode(fh.code))),
-      ")"
+      Lined(List(resultDoc, s" $$${fh.name}() {")),
+        Indented(Stacked(mkCode(fh.code))),
+      "}"
     )
   }
 
@@ -100,12 +105,7 @@ object ModulePrinter {
       case Comment(s) =>
         var first = true;
         Stacked(s.split('\n').toList.map(s =>
-          if (first) {
-            first = false;
-            Raw(s";;> $s")
-          } else {
-            Raw(s";;| $s")
-          }
+            Raw(s"// $s")
         ))
     }
   }
