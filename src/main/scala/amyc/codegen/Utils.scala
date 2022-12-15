@@ -21,7 +21,7 @@ object Utils {
     // "\"system\" \"readInt\" (func $Std_readInt (result i32))",
     // "\"system\" \"mem\" (memory 100)"
     "void Std_printInt(){\n\tprintf(\"%d\\n\", pop);\n\tcnst 0;\n}",
-    "void Std_printString(){\n\tprintf(\"printing string %s\\n\", &memory[pop]);\n}",
+    "void Std_printString(){\n\tprintf(\"%s\\n\", &memory[pop]);\n}",
     "void Std_readString(){\n\tprintf(\"reading string\\n\");\n}",
     "void Std_readInt(){\n\tprintf(\"reading int\\n\");\n}",
     "void Std_mem(){\n\tprintf(\"init memory\\n\");\n}",

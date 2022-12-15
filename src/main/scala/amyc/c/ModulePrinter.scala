@@ -14,6 +14,7 @@ object ModulePrinter {
     // Indented("(global (mut i32) i32.const 0) " * mod.globals),
     // ")"
     "#include <stdio.h>",
+    "#include <stdlib.h>",
     "int a;",
     "#define push stack[stack_pointer++] = ",
     "#define pop stack[--stack_pointer]",
