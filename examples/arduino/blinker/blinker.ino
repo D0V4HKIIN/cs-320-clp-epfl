@@ -5,6 +5,7 @@ int buttonState = 0;
 int i = 0;
 
 void setup() {
+  Serial.begin(9600);
   // initialize the LED pin as an output:
   pinMode(ledPin, OUTPUT);
   // initialize the pushbutton pin as an input:
@@ -14,6 +15,7 @@ void setup() {
 void loop() {
   // read the state of the pushbutton value:
   buttonState = digitalRead(buttonPin);
+  Serial.println(buttonState);
 
   // check if the pushbutton is pressed. If it is, the buttonState is HIGH:
   if (buttonState == HIGH) {
@@ -26,6 +28,6 @@ void loop() {
     i = 0;
   }
 
-  delay(i * 1000);
-  digitalWrite(ledPin, LOW);
+//  delay(i * 1000);
+//  digitalWrite(ledPin, LOW);
 }

@@ -3,25 +3,26 @@ object Blinker
   // LOW == 0
 
   fn count(i: Int(32), ledPin: Int(32), buttonPin: Int(32)): Unit = {
-    Std.digitalWrite(ledPin, 0);
-    Std.delay(i * 1000);
     if(Std.digitalRead(buttonPin) == 1){
       Std.digitalWrite(ledPin, 1);
+      Std.delay(i * 100);
+      Std.digitalWrite(ledPin, 0);
+      Std.delay(100);
       count(i + 1, ledPin, buttonPin)
     }
     else {
-      Std.digitalWrite(ledPin, 1);
+      Std.digitalWrite(ledPin, 0);
       count(0, ledPin, buttonPin)
     }
   }
 
-  // INPUT == 0
-  // OUTPUT == 1
+  val INPUT: Int(32) = 0;
+  val OUTPUT: Int(32) = 1;
 
   // initialize the LED pin as an output:
-  Std.pinMode(13, 1);
+  Std.pinMode(13, OUTPUT);
   // initialize the pushbutton pin as an input:
-  Std.pinMode(2, 0);
+  Std.pinMode(2, INPUT);
   
   count(0, 13, 2)
 end Blinker

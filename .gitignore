@@ -18,3 +18,9 @@ logs/
 .bsp
 wasmout/
 bin/
+wasmout_old/
+node_modules/
+cout/
+package.json
+package-lock.json
+.scalafmt.conf
