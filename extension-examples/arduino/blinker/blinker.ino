@@ -28,6 +28,6 @@ void loop() {
     i = 0;
   }
 
-//  delay(i * 1000);
-//  digitalWrite(ledPin, LOW);
+  delay(i * 100);
+  digitalWrite(ledPin, LOW);
 }
