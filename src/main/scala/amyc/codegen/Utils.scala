@@ -25,11 +25,11 @@ object Utils {
     // TODO
     "void Std_readString(){\n\tprintf(\"reading string\\n\");\n}",
     "void Std_readInt(){\n\tprintf(\"reading int\\n\");\n}",
-    // arduino stuff
-    "void Std_pinMode(){\n\tpinMode(peek(2), peek(1));drop;drop;\n\tcnst 0;\n}",
-    "void Std_digitalRead(){\n\tpush digitalRead(pop);\n}",
-    "void Std_digitalWrite(){\n\tdigitalWrite(peek(2), peek(1));drop;drop;\n\tcnst 0;\n}",
-    "void Std_delay(){\n\tdelay(pop);\n\tcnst 0;\n}",
+    // arduino stuff uncomment when creating aruidno code
+    // "void Std_pinMode(){\n\tpinMode(peek(2), peek(1));drop;drop;\n\tcnst 0;\n}",
+    // "void Std_digitalRead(){\n\tpush digitalRead(pop);\n}",
+    // "void Std_digitalWrite(){\n\tdigitalWrite(peek(2), peek(1));drop;drop;\n\tcnst 0;\n}",
+    // "void Std_delay(){\n\tdelay(pop);\n\tcnst 0;\n}",
     // "void Std_mem(){\n\tprintf(\"init memory\\n\");\n}",
     // ---- std debug prints ----
     "void print_state(){\n\tfor(int i = 0; i < stack_pointer; i++){\n\t\tprintf(\"%i, \", stack[i]);\n\t}\n\tprintf(\"\\n\");\n}",
@@ -44,10 +44,11 @@ object Utils {
     "Std_digitToString",
     "Std_readInt",
     "Std_readString",
-    "Std_pinMode",
-    "Std_digitalRead",
-    "Std_digitalWrite",
-    "Std_delay"
+    // arduino stuff uncomment when creating aruidno code 
+    // "Std_pinMode",
+    // "Std_digitalRead",
+    // "Std_digitalWrite",
+    // "Std_delay"
   )
 
   /** Utilities */

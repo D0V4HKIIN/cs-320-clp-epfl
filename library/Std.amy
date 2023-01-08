@@ -40,16 +40,16 @@ object Std
 
   // arduino functions
   fn pinMode(a: Int(32), b: Int(32)): Unit = {
-    error("") // Stub implementation
+    error("need to uncomment the implementations in Utils.scala") // Stub implementation
   }
   fn digitalWrite(a: Int(32), b: Int(32)): Unit = {
-    error("") // Stub implementation
+    error("need to uncomment the implementations in Utils.scala") // Stub implementation
   }
   fn digitalRead(a: Int(32)): Int(32) = {
-    error("") // Stub implementation
+    error("need to uncomment the implementations in Utils.scala") // Stub implementation
   }
   fn delay(a: Int(32)): Unit = {
-    error("") // Stub implementation
+    error("need to uncomment the implementations in Utils.scala") // Stub implementation
   }
   
 end Std
