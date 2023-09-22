@@ -1,11 +1,12 @@
-# CS-320 Assignments
+# Lab 6: Project 5.5 Compilation to C
 
-Welcome! This git repository contains your assignments for the *Computer Language Processing* course.
+## Compile amy files to C
+In sbt use the command `run [libraries to include] [file to compile]`. It will also try to compile to a binary using gcc.
+The output will be in the folder `cout`
 
-Course material and administrative details can be found on the [Gitlab page](https://gitlab.epfl.ch/lara/cs320). More information on grading, Git and Gitlab can be found in [“Grading and Submission”](https://gitlab.epfl.ch/lara/cs320-template/-/blob/main/grading-and-submission.md).
+Examples:
+```
+run library/Std.amy extension-examples/Hanoi.amy
 
-## How to see files for a specific assignment
-
-To select a branch, click on the "main" dropdown menu (under the project description):
-
-![Branch selection](images/projects.png)
+run library/Std.amy library/Option.amy library/List.amy extension-examples/TestLists.amy
+```

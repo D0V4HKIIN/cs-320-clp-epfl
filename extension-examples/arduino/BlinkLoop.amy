@@ -1,0 +1,27 @@
+object BlinkLoop
+  fn count(ledPin: Int(32), buttonPin: Int(32)): Unit = {
+    Std.digitalWrite(ledPin, 1);
+    Std.delay(200);
+    Std.digitalWrite(ledPin, 0);
+    if (Std.digitalRead(buttonPin) == 0){
+      val nextPin: Int(32) = (ledPin - 9) % 4 + 10;
+      count(nextPin, buttonPin)
+    }else{
+      val nextPin: Int(32) = (ledPin - 11 + 4) % 4 + 10;
+      count(nextPin, buttonPin)
+    }
+  }
+
+  val INPUT: Int(32) = 0;
+  val OUTPUT: Int(32) = 1;
+
+  // initialize the LED pins as an output:
+  Std.pinMode(10, OUTPUT);
+  Std.pinMode(11, OUTPUT);
+  Std.pinMode(12, OUTPUT);
+  Std.pinMode(13, OUTPUT);
+  // initialize the pushbutton pin as an input:
+  Std.pinMode(2, INPUT);
+  
+  count(10, 2)
+end BlinkLoop
